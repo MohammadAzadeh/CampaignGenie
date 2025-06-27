@@ -1,0 +1,6 @@
+streamlit 
+TinyDB 
+pydantic
+agno
+sqlalchemy
+fastapi[standard]

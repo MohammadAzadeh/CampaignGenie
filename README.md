@@ -1,1 +1,21 @@
 # CampaignGenie
+
+## How To Setup
+
+```bash
+export OPENAI_API_KEY=""
+pip install -r requirements.txt
+```
+
+```bash
+# TO RUN AGENT-UI
+# npx create-agent-ui@latest
+# cd agent-ui
+# nvm use 20
+# npm run dev
+```
+
+```bash
+# TO RUN STREAMLIT
+streamlit run chat.py
+```
