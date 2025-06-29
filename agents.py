@@ -4,6 +4,9 @@ import json
 from agno.agent import Agent, Message
 from agno.models.openai import OpenAIChat
 from agno.storage.sqlite import SqliteStorage
+from textwrap import dedent
+
+
 
 from models import UserRequest
 
@@ -27,10 +30,11 @@ def save_user_request(agent: Agent, user_request: UserRequest):
 class FirstAgent:
     def __init__(self, session_id):
         self.agent = Agent(
-            name="Web Agent",
+            name="Greetings Agent",
             model=OpenAIChat(id="gpt-4.1-mini", base_url='https://api.metisai.ir/openai/v1', api_key=os.environ['OPENAI_API_KEY']),
             tools=[save_user_request],
-            instructions=[f""" 
+            # TODO: Change the instruction to english.
+            instructions=[dedent(f""" 
                           تو یک دستیار هوشمند در یکتانت هستی و اسم تو جن‌کمپین است.
                           هدف تو راهنمایی و کسب اطلاعات لازم از مشتریان یکتانت در جهت ساخت کمپین‌های تبلیغاتی است
                           ابتدا باید با پرسیدن سوالات مناسب، اطلاعات لازم برای ساخت کمپین رو به دست بیاری
@@ -39,7 +43,7 @@ class FirstAgent:
                           یک کلاس 
                           UserRequest 
                           بسازی.
-                          """],
+                          """)],
             # Store the agent sessions in a sqlite database
             storage=SqliteStorage(table_name="first_agent", db_file=agent_storage),
             # Adds the current date and time to the instructions

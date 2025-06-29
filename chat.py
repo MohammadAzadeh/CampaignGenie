@@ -27,6 +27,22 @@ if 'agent' not in st.session_state:
 if 'messages' not in st.session_state:
     messages: List[Message] = st.session_state['agent'].agent.get_messages_for_session()
     st.session_state['messages'] = [{"sender": m.role, "message": m.content} for m in messages]
+    
+    # Add initial assistant message if no previous messages exist
+    if not st.session_state['messages']:
+        initial_message = dedent("""
+سلام! من جن‌کمپین هستم، دستیار هوشمند یکتانت برای ساخت کمپین‌های تبلیغاتی.
+
+
+من به شما کمک میکنم که اطلاعات لازم برای ساخت کمپین‌های تلبیغاتی رو مشخص کنیم
+ و در نهایت یک درخواست ساخت کمپین برای شما ثبت میکنم
+   تا همکاران ما در سریع‌ترین زمان کمپین شما را بسازند.
+
+لطفاً بفرمایید قصد دارید برای چه کسب‌وکاری تبلیغات داشته باشید؟
+""")
+        st.session_state['messages'] = [
+            {"sender": "Assistant", "message": initial_message}
+        ]
 
 # Display chat history using chat bubbles
 for row in st.session_state['messages']:

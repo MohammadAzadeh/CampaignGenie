@@ -1,3 +1,5 @@
 agent-ui/*
 .env/*
 __pycache__/*
+tmp/*
+user_requests/*

@@ -88,3 +88,7 @@ class UserRequest(BaseModel):
         ..., description="List of previous marketing experiences"
     )
 
+class CampaignPlan(BaseModel):
+    id: int
+    needs_confirmation: bool
+    campaign_plan: str

@@ -4,3 +4,4 @@ pydantic
 agno
 sqlalchemy
 fastapi[standard]
+lancedb
