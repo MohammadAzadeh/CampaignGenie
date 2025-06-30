@@ -1,12 +1,7 @@
-from agno.playground import Playground
-from agents import FirstAgent
-
-
-# This playground is meant to be used in Agent-UI,
-# Also, Available on localhost:7777 
-playground_app = Playground(agents=[FirstAgent().agent])
-app = playground_app.get_app()
+from agents import CampaignPlanner
 
 
 if __name__ == "__main__":
-    playground_app.serve("main:app", reload=True)
+    planner = CampaignPlanner(session_id="4fc6d832-fdfe-4cd9-bdcd-7bd559b8cf70")
+    planner.respond()
+    

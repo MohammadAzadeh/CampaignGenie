@@ -6,12 +6,11 @@ from agno.models.openai import OpenAIChat
 from agno.storage.sqlite import SqliteStorage
 from textwrap import dedent
 
-
-
-from models import UserRequest
+from models import UserRequest, CampaignPlan
+from kb import campaign_planner_retriever
 
 # TODO: Move all Storage Config to a file
-agent_storage: str = "tmp/agents.db"
+agent_storage: str = "files/tmp/agents.db"
 
 
 def save_user_request(agent: Agent, user_request: UserRequest):
@@ -21,9 +20,8 @@ def save_user_request(agent: Agent, user_request: UserRequest):
     Args:
         user_request (UserRequest): detailed user request
     """
-    print(user_request)
-    session_id = agent.session_id
-    with open(f"user_requests/{session_id}.json", "w") as f:
+    SESSION_ID = agent.session_id
+    with open(f"files/user_requests/{SESSION_ID}.json", "w") as f:
         f.write(user_request.model_dump_json())
 
 
@@ -55,6 +53,7 @@ class FirstAgent:
             # Adds markdown formatting to the messages
             markdown=True,
             session_id=session_id,
+            debug_mode=True,
         )
 
     def respond(self, user_message):
@@ -72,3 +71,42 @@ class FirstAgent:
             ],
         )
         return self.agent.run(msg).content
+
+
+class CampaignPlanner:
+    def __init__(self, session_id):
+        self.agent = Agent(
+            name="Campaign Planner Agent",
+            model=OpenAIChat(id="gpt-4.1-mini", base_url='https://api.metisai.ir/openai/v1', api_key=os.environ['OPENAI_API_KEY']),
+            tools=[],
+            goal="Create a CampaignPlan to handle the given UserRequest in persian",
+            instructions=[dedent(f"""
+                          You're given a UserRequest to create a digital marketing campaign in Yektanet. 
+                          Also, previous campaign plans and details related to similar businesses are provided. 
+
+                          * CampaignPlan.needs_confirmation should be True, If provided samples are not similar enough.  
+                          * Search the knowledge_base using given UserRequest in persian.             
+                          """)],
+            # Store the agent sessions in a sqlite database
+            # storage=SqliteStorage(table_name="second_agent", db_file=agent_storage),
+            # Adds the current date and time to the instructions
+            add_datetime_to_instructions=True,
+            # Adds the history of the conversation to the messages
+            add_history_to_messages=True,
+            # Number of history responses to add to the messages
+            num_history_responses=5,
+            # Adds markdown formatting to the messages
+            markdown=True,
+            session_id=session_id,
+            debug_mode=True,
+            response_model=CampaignPlan,
+            retriever=campaign_planner_retriever,
+            search_knowledge=True,
+        )
+
+    def respond(self):
+        with open(f"files/user_requests/{self.agent.session_id}.json", "r") as f:
+            a = f.read()
+        resp = self.agent.run(a)
+        with open(f"files/campaign_plans/{self.agent.session_id}.json", "w") as f:
+            f.write(resp.content.model_dump_json())
