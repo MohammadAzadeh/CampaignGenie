@@ -3,3 +3,6 @@ agent-ui/*
 __pycache__/*
 tmp/*
 user_requests/*
+venv
+.idea
+.env
