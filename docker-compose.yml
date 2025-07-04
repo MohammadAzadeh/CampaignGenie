@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  campaigngenie:
+    build: .
+    container_name: campaigngenie
+    env_file: # keeps secrets out of git
+      - .env
+    ports:
+      - "8501:8501"         # host:container
+    volumes:
+      # optional: persist uploads / generated DBs between runs
+      - campaigngenie_data:/app/pages/files
+
+volumes:
+  campaigngenie_data:
