@@ -4,5 +4,8 @@ __pycache__/*
 tmp/*
 user_requests/*
 venv
+env
 .idea
 .env
+campaigns.db
+__pycache__

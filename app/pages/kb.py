@@ -9,10 +9,9 @@ from agno.document import Document
 from agno.vectordb.lancedb import LanceDb, SearchType
 from agno.embedder.openai import OpenAIEmbedder
 
-
 # TODO: Move all Storage Config to a file
-agent_storage: str = "files/tmp/agents.db"
-documents_df = pd.read_csv("files/CampaignGenieDocuments - Documents.csv")
+agent_storage: str = "pages/files/tmp/agents.db"
+documents_df = pd.read_csv("pages/files/CampaignGenieDocuments - Documents.csv")
 
 # Create Document instances
 documents = []
@@ -20,33 +19,33 @@ for _, row in documents_df.iterrows():
     metadata = {
         "contenttype": row.get("metadata_contenttype"),
         "url": row.get("metadata_url"),
-        "full_text": row.get("full_text")
+        "full_text": row.get("full_text"),
     }
 
-    doc = Document(
-        id=row.get("id"),
-        name=row.get("name"),
-        content=row.get("content"),
-        meta_data=metadata
-    )
+    doc = Document(id=row.get("id"), name=row.get("name"), content=row.get("content"), meta_data=metadata)
     documents.append(doc)
-
 
 knowledge_base = DocumentKnowledgeBase(
     documents=documents,
     vector_db=LanceDb(
         table_name="recipes",
-        uri="files/tmp/lancedb",
+        uri="pages/files/tmp/lancedb",
         search_type=SearchType.vector,
-        embedder=OpenAIEmbedder(id="text-embedding-3-small", base_url='https://api.metisai.ir/openai/v1', api_key=os.environ['OPENAI_API_KEY']),
+        embedder=OpenAIEmbedder(
+            id="text-embedding-3-small",
+            base_url="https://api.metisai.ir/openai/v1",
+            api_key=os.environ["METIS_API_KEY"],
+        ),
     ),
 )
+
+
 # Uncomment to load documents again.
 # knowledge_base.load(recreate=True)
 
 
 def campaign_planner_retriever(
-    query: str, agent: Optional[Agent] = None, num_documents: int = 5, **kwargs
+        query: str, agent: Optional[Agent] = None, num_documents: int = 5, **kwargs
 ) -> Optional[list[dict]]:
     """
     Custom retriever function to search the vector database for relevant documents.
