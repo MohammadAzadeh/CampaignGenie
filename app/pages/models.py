@@ -66,9 +66,14 @@ class CampaignRequest(BaseModel):
     daily_budget: PositiveInt = Field(..., title="Daily Budget", gt=0)
     total_budget: PositiveInt = Field(..., title="Daily Budget", gt=0)
     landing: Landing = Field(..., title="Landing")
-    experiences: list[MarketingExperience] = Field(..., description="List of previous marketing experiences")
+    experiences: Optional[list[MarketingExperience]] = Field(
+        ...,
+        description="List of previous marketing experiences",
+        default_factory=list,
+    )
     status: str = Field(default="جدید", title="Status")
     created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
+    session_id: str = Field(..., title="Session ID")
 
     class Config:
         validate_assignment = True

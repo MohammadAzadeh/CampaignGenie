@@ -10,7 +10,6 @@ from agno.vectordb.lancedb import LanceDb, SearchType
 from agno.embedder.openai import OpenAIEmbedder
 
 # TODO: Move all Storage Config to a file
-agent_storage: str = "pages/files/tmp/agents.db"
 documents_df = pd.read_csv("pages/files/CampaignGenieDocuments - Documents.csv")
 
 # Create Document instances

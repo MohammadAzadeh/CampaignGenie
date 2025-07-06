@@ -7,5 +7,5 @@ venv
 env
 .idea
 .env
-campaigns.db
 __pycache__
+campaign_genie.db

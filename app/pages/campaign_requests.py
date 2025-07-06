@@ -7,9 +7,8 @@ import pandas as pd
 import streamlit as st
 from pydantic import ValidationError
 
-from pages.db import init_db
 from pages.models import CampaignRequest, IRAN_PROVINCES, Landing, Business
-from pages.campaign_request_crud import insert_campaign_request, fetch_campaign_requests
+from pages.crud import insert_campaign_request, fetch_campaign_requests
 
 
 def inject_global_css() -> None:
@@ -96,6 +95,9 @@ def render_create_form() -> None:
                     format="%d",
                 )
                 landing_type = st.selectbox("نوع لندینگ", ["سایت", "شماره تماس", "اکانت بیزنسی", "اپلیکیشن"])
+                goal = st.selectbox(
+                    "هدف تبلیغاتی", ["انتخاب توسط کمپین جن", "افزایش فروش", "جمع آوری لید", "افزایش ترافیک"]
+                )
 
             with col2:
                 business_name = st.text_input("نام کسب‌و‌کار")
@@ -116,6 +118,7 @@ def render_create_form() -> None:
                 try:
                     campaign = CampaignRequest(
                         advertiser_id=1,
+                        goal=goal,
                         business=Business(name=business_name, type=business_type),
                         target_audience=target_audience,
                         locations=locations,
@@ -138,7 +141,6 @@ def main() -> None:
         initial_sidebar_state="collapsed",
     )
     inject_global_css()
-    init_db()
 
     st.header("📄 مدیریت درخواست‌های کمپین")
     render_campaigns_table()
