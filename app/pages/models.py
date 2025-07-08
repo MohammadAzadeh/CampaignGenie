@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 from pydantic import BaseModel, Field, PositiveInt
 
@@ -84,3 +84,11 @@ class CampaignPlan(BaseModel):
     id: int
     needs_confirmation: bool
     campaign_plan: str
+
+
+class Task(BaseModel):
+    type: Literal['confirm_campaign_plan', "generate_campaign_tasks"]
+    description: str
+    status: Literal['pending', 'in_progress', 'completed', 'failed']
+    session_id: str
+

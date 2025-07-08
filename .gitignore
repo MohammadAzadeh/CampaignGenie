@@ -9,3 +9,4 @@ env
 .env
 __pycache__
 campaign_genie.db
+files/*

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import os
+import uuid
 from textwrap import dedent
 
 from agno.agent import Agent, Message
 from agno.models.openai import OpenAIChat
 from agno.storage.sqlite import SqliteStorage
 
-from pages.models import CampaignRequest, CampaignPlan
-from pages.kb import campaign_planner_retriever
+
+from pages.models import CampaignRequest, CampaignPlan, Task
+from pages.kb import campaign_planner_retriever, get_documents_for_user_request
 from pages.crud import (
     insert_campaign_request,
     fetch_latest_campaign_request,
@@ -79,19 +81,20 @@ class CampaignPlanner:
                 api_key=os.environ["METIS_API_KEY"],
             ),
             tools=[],
-            goal="Create a CampaignPlan to handle the given CampaignRequest in Persian",
-            instructions=[
-                dedent(
-                    f"""
-                          You're given a CampaignRequest to create a digital marketing campaign in Yektanet. 
+            goal="Create a CampaignPlan to handle the given UserRequest in persian",
+            instructions=[dedent("""
+                          You're given a UserRequest to create a digital marketing campaign in Yektanet. 
                           Also, previous campaign plans and details related to similar businesses are provided. 
 
                           * CampaignPlan.needs_confirmation should be True, If provided samples are not similar enough.  
-                          * Search the knowledge_base using given UserRequest in persian.             
-                          """
-                )
-            ],
+                          * Search the knowledge_base using given UserRequest in persian, include business type and goal.
+                          * Only call the search_knowledge tool once in each response.    
+
+                          Also, related documents names and types are provided to make you aware of the available
+                                  documents in the knowledge base.
+                          """)],
             storage=SqliteStorage(table_name="campaign_planner", db_file="campaign_genie.db"),
+
             add_datetime_to_instructions=True,
             # Adds the history of the conversation to the messages
             add_history_to_messages=True,
@@ -108,11 +111,25 @@ class CampaignPlanner:
 
     def respond(self) -> CampaignPlan:
         campaign_request = fetch_latest_campaign_request(self.session_id)
+
         if campaign_request is None:
             raise RuntimeError("No CampaignRequest stored for this session yet.")
 
-        reply = self.agent.run(campaign_request.model_dump_json())
+        # Get relevant documents for the user request
+        documents_info = get_documents_for_user_request(campaign_request)
+
+        # Combine user request with documents info
+        combined_input = f"CampaignRequest:\n{campaign_request.model_dump_json()}\n"
+        combined_input += f"Related documents:\n{documents_info}"
+
+        reply = self.agent.run(combined_input)
         campaign_plan: CampaignPlan = reply.content
 
         insert_campaign_plan(self.session_id, campaign_plan)
+
+        task = Task(type="confirm_campaign_plan", description="Confirm the campaign plan or edit it if needed", 
+                    status="pending", session_id=self.agent.session_id)
+        with open(f"files/tasks/{uuid.uuid4()}.json", "w") as f:
+            f.write(task.model_dump_json())
+
         return campaign_plan
