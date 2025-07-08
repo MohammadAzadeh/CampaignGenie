@@ -1,13 +1,13 @@
 import os
-import json
+import uuid
 
 from agno.agent import Agent, Message
 from agno.models.openai import OpenAIChat
 from agno.storage.sqlite import SqliteStorage
 from textwrap import dedent
 
-from models import UserRequest, CampaignPlan
-from kb import campaign_planner_retriever
+from models import UserRequest, CampaignPlan, Task
+from kb import campaign_planner_retriever, get_documents_for_user_request
 
 # TODO: Move all Storage Config to a file
 agent_storage: str = "files/tmp/agents.db"
@@ -80,12 +80,16 @@ class CampaignPlanner:
             model=OpenAIChat(id="gpt-4.1-mini", base_url='https://api.metisai.ir/openai/v1', api_key=os.environ['OPENAI_API_KEY']),
             tools=[],
             goal="Create a CampaignPlan to handle the given UserRequest in persian",
-            instructions=[dedent(f"""
+            instructions=[dedent("""
                           You're given a UserRequest to create a digital marketing campaign in Yektanet. 
                           Also, previous campaign plans and details related to similar businesses are provided. 
 
                           * CampaignPlan.needs_confirmation should be True, If provided samples are not similar enough.  
-                          * Search the knowledge_base using given UserRequest in persian.             
+                          * Search the knowledge_base using given UserRequest in persian, include business type and goal.
+                          * Only call the search_knowledge tool once in each response.    
+
+                          Also, related documents names and types are provided to make you aware of the available
+                                  documents in the knowledge base.
                           """)],
             # Store the agent sessions in a sqlite database
             # storage=SqliteStorage(table_name="second_agent", db_file=agent_storage),
@@ -106,7 +110,22 @@ class CampaignPlanner:
 
     def respond(self):
         with open(f"files/user_requests/{self.agent.session_id}.json", "r") as f:
-            a = f.read()
-        resp = self.agent.run(a)
+            user_request_json = f.read()
+        
+        # Parse the UserRequest from JSON
+        user_request = UserRequest.model_validate_json(user_request_json)
+        
+        # Get relevant documents for the user request
+        documents_info = get_documents_for_user_request(user_request)
+        
+        # Combine user request with documents info
+        combined_input = f"UserRequest:\n{user_request_json}\n\nRelated documents:\n{documents_info}"
+        
+        resp = self.agent.run(combined_input)
         with open(f"files/campaign_plans/{self.agent.session_id}.json", "w") as f:
             f.write(resp.content.model_dump_json())
+
+        task = Task(type="confirm_campaign_plan", description="Confirm the campaign plan or edit it if needed", 
+                    status="pending", session_id=self.agent.session_id)
+        with open(f"files/tasks/{uuid.uuid4()}.json", "w") as f:
+            f.write(task.model_dump_json())

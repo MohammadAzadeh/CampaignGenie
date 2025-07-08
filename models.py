@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Literal, Optional, List
 
 
 class LandingDetail(BaseModel):
@@ -88,7 +88,16 @@ class UserRequest(BaseModel):
         ..., description="List of previous marketing experiences"
     )
 
+
 class CampaignPlan(BaseModel):
     id: int
     needs_confirmation: bool
     campaign_plan: str
+
+
+class Task(BaseModel):
+    type: Literal['confirm_campaign_plan', "generate_campaign_tasks"]
+    description: str
+    status: Literal['pending', 'in_progress', 'completed', 'failed']
+    session_id: str
+

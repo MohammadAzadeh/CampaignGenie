@@ -2,6 +2,6 @@ from agents import CampaignPlanner
 
 
 if __name__ == "__main__":
-    planner = CampaignPlanner(session_id="4fc6d832-fdfe-4cd9-bdcd-7bd559b8cf70")
+    planner = CampaignPlanner(session_id="ddcc2f23-41ee-4709-b6a8-28dfa0d1c1d0")
     planner.respond()
     

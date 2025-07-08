@@ -8,6 +8,7 @@ from agno.knowledge.document import DocumentKnowledgeBase
 from agno.document import Document
 from agno.vectordb.lancedb import LanceDb, SearchType
 from agno.embedder.openai import OpenAIEmbedder
+from models import UserRequest
 
 
 # TODO: Move all Storage Config to a file
@@ -38,7 +39,11 @@ knowledge_base = DocumentKnowledgeBase(
         table_name="recipes",
         uri="files/tmp/lancedb",
         search_type=SearchType.vector,
-        embedder=OpenAIEmbedder(id="text-embedding-3-small", base_url='https://api.metisai.ir/openai/v1', api_key=os.environ['OPENAI_API_KEY']),
+        embedder=OpenAIEmbedder(
+            id="text-embedding-3-small", 
+            base_url='https://api.metisai.ir/openai/v1', 
+            api_key=os.environ['OPENAI_API_KEY']
+        ),
     ),
 )
 # Uncomment to load documents again.
@@ -46,7 +51,7 @@ knowledge_base = DocumentKnowledgeBase(
 
 
 def campaign_planner_retriever(
-    query: str, agent: Optional[Agent] = None, num_documents: int = 5, **kwargs
+    query: str, agent: Optional[Agent] = None, **kwargs
 ) -> Optional[list[dict]]:
     """
     Custom retriever function to search the vector database for relevant documents.
@@ -61,9 +66,57 @@ def campaign_planner_retriever(
         Optional[list[dict]]: List of retrieved documents or None if search fails
     """
     try:
-        case_studies = knowledge_base.search(query=query, num_documents=1, filters={"contenttype": "casestudy"})
-        case_studies = [cs.to_dict() for cs in case_studies]
-        return case_studies
+        case_studies = knowledge_base.search(query=query, num_documents=2, filters={"contenttype": "casestudy"})
+        helps = knowledge_base.search(query=query, num_documents=2, filters={"contenttype": "help"})
+        print("len", len(case_studies), len(helps))
+        # TODO: Add the name and metadata['contenttype'] of top 10 documents to the response
+        documents = case_studies + helps
+        documents = [doc.to_dict() for doc in documents]
+        return documents
     except Exception as e:
         print(f"Error during vector database search: {str(e)}")
         return None
+
+
+def get_documents_for_user_request(user_request: UserRequest) -> str:
+    """
+    Retrieve relevant documents based on business_detail and goal fields from UserRequest.
+    Generate a formatted message with top 10 documents including names and content types.
+    
+    Args:
+        user_request (UserRequest): The user request containing business details and goal
+        
+    Returns:
+        str: Formatted message containing document information
+    """
+    try:
+        # Create a comprehensive search query from business details and goal
+        business_name = user_request.business_detail.name
+        business_type = user_request.business_detail.type
+        business_description = user_request.business_detail.description or ""
+        goal = user_request.goal
+        
+        # Build search query combining business info and goal
+        search_query = f"{business_name} {business_type} {business_description} {goal}"
+        
+        # Search for relevant documents (top 10)
+        documents = knowledge_base.search(query=search_query, num_documents=10)
+        
+        if not documents:
+            return "No documents found"
+        
+        # Generate formatted message with document information
+        message_parts = []
+        
+        for i, doc in enumerate(documents, 1):
+            doc_dict = doc.to_dict()
+            name = doc_dict.get('name', 'نامشخص')
+            content_type = doc_dict.get('meta_data', {}).get('contenttype', 'نامشخص')
+            
+            message_parts.append(f"{i}. {name} ({content_type})")
+        
+        return "\n".join(message_parts)
+        
+    except Exception as e:
+        print(f"Error during document retrieval: {str(e)}")
+        return "Error during document retrieval"
