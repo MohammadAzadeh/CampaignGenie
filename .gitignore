@@ -3,3 +3,10 @@ agent-ui/*
 __pycache__/*
 tmp/*
 user_requests/*
+venv
+env
+.idea
+.env
+__pycache__
+campaign_genie.db
+files/*

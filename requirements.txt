@@ -1,8 +1,8 @@
+pydantic-ai==0.3.3
 openai
-streamlit 
-TinyDB 
-pydantic
+TinyDB
 agno
 sqlalchemy
 fastapi[standard]
 lancedb
+streamlit
