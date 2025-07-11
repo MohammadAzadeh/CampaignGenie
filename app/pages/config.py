@@ -17,6 +17,7 @@ DB_PATH = pathlib.Path("app/pages/files/campaign_genie.db")
 # Agent storage database paths
 FIRST_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
 CAMPAIGN_PLANNER_DB_PATH = "app/pages/files/campaign_genie.db"
+KBGK_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
 
 # Vector database configuration
 VECTOR_DB_URI = "app/pages/files/tmp/lancedb"
@@ -49,6 +50,7 @@ EMBEDDING_MODEL_ID = "text-embedding-3-small"
 # Agent storage table names
 FIRST_AGENT_TABLE_NAME = "first_agent"
 CAMPAIGN_PLANNER_TABLE_NAME = "campaign_planner"
+KBGK_AGENT_TABLE_NAME = "kbgk_agent"
 AGENT_DEBUG_MODE = True
 
 
@@ -83,3 +85,7 @@ def get_first_agent_db_path() -> str:
 def get_campaign_planner_db_path() -> str:
     """Get the campaign planner database path."""
     return CAMPAIGN_PLANNER_DB_PATH
+
+def get_kbgk_agent_db_path() -> str:
+    """Get the KBGK agent database path."""
+    return KBGK_AGENT_DB_PATH

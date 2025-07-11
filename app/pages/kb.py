@@ -1,7 +1,9 @@
 import os
 import pandas as pd
-
-from typing import Optional
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import quote_plus
+from typing import Optional, List, Dict
 
 from agno.agent import Agent
 from agno.knowledge.document import DocumentKnowledgeBase
@@ -122,3 +124,101 @@ def get_documents_for_user_request(campaign_request: CampaignRequest) -> str:
     except Exception as e:
         print(f"Error during document retrieval: {str(e)}")
         return "Error during document retrieval"
+
+
+def search_yektanet(query: str) -> List[Dict[str, str]]:
+    """
+    Search Yektanet for the given query and return top 10 results.
+    
+    Args:
+        query (str): The search query to look for on Yektanet
+        
+    Returns:
+        List[Dict[str, str]]: List of dictionaries containing 'title' and 'url' for each result
+    """
+    try:
+        # Encode the query for URL
+        encoded_query = quote_plus(query)
+        search_url = f"https://www.yektanet.com/search/?q={encoded_query}"
+        
+        # Set headers to mimic a real browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+        
+        # Make the request
+        response = requests.get(search_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # Parse the HTML content
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        results = []
+        
+        # Look for search result elements - this will need to be adjusted based on Yektanet's actual HTML structure
+        # Common selectors for search results
+        possible_selectors = [
+            '.search-result',
+            '.result',
+            '.search-item',
+            '.item',
+            'article',
+            '.post',
+            '.entry'
+        ]
+        
+        search_results = []
+        for selector in possible_selectors:
+            search_results = soup.select(selector)
+            if search_results:
+                break
+        
+        # If no specific selectors work, try to find links that might be search results
+        if not search_results:
+            # Look for links that contain the search query or are likely to be search results
+            all_links = soup.find_all('a', href=True)
+            search_results = [link.parent for link in all_links if any(word in link.get_text().lower() for word in query.lower().split())]
+        
+        # Extract title and URL from each result
+        for i, result in enumerate(search_results[:10]):  # Limit to top 10
+            # Try to find the title
+            title_element = result.find(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'div'])
+            title = title_element.get_text().strip() if title_element else f"Result {i+1}"
+            
+            # Clean the title: remove extra whitespace, newlines, and normalize spaces
+            if title:
+                # Remove extra whitespace and newlines
+                title = ' '.join(title.split())
+                # Remove any leading/trailing whitespace
+                title = title.strip()
+            
+            # Try to find the URL
+            link_element = result.find('a', href=True)
+            url = link_element['href'] if link_element else ""
+            
+            # Make sure URL is absolute
+            if url and not url.startswith('http'):
+                if url.startswith('/'):
+                    url = f"https://www.yektanet.com{url}"
+                else:
+                    url = f"https://www.yektanet.com/{url}"
+            
+            if title and url:
+                results.append({
+                    'title': title,
+                    'url': url
+                })
+        
+        return results
+        
+    except requests.RequestException as e:
+        print(f"Error making request to Yektanet: {str(e)}")
+        return []
+    except Exception as e:
+        print(f"Error parsing Yektanet search results: {str(e)}")
+        return []

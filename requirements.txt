@@ -6,3 +6,5 @@ sqlalchemy
 fastapi[standard]
 lancedb
 streamlit
+requests
+beautifulsoup4
