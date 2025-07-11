@@ -157,7 +157,8 @@ class CampaignPlanCRUD(_BaseCRUD):
 
 def insert_campaign_request(cr: CampaignRequestDB) -> None:  # noqa: D401
     """Insert *one* `CampaignRequest`.  Thin wrapper around the CRUD class."""
-
+    if cr.experiences is None:
+        cr.experiences = []
     CampaignRequestCRUD.insert(cr)
 
 

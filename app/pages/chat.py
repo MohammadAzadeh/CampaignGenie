@@ -18,7 +18,6 @@ st.title("Chat with Agent")
 
 if "session_id" not in st.session_state:
     st.session_state["session_id"] = str(uuid.uuid4())
-    print("SessionID", st.session_state["session_id"])
 
 # Display session ID
 if "session_id" in st.session_state:
@@ -95,7 +94,6 @@ if st.sidebar.button("Resume Session", type="secondary"):
         # Load messages for the new session
         messages: List[Message] = st.session_state["agent"].agent.get_messages_for_session(new_session_id)
         for m in messages:
-            print(m)
             if m.role == "user":
                 st.session_state["messages"].append({"sender": m.role, "message": m.content[0]['text']})   
             elif m.role == "assistant":

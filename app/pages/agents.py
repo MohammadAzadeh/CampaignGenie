@@ -17,6 +17,7 @@ from pages.crud import (
     fetch_latest_campaign_request,
     insert_campaign_plan,
 )
+from pages.prompts import YEKTANET_SERVICES
 from pages.config import (
     OPENAI_BASE_URL,
     get_openai_api_key,
@@ -54,20 +55,19 @@ class FirstAgent:
                 api_key=get_openai_api_key(),
             ),
             tools=[persist_user_request],
-            # TODO: Change the instruction to english.
             instructions=[
                 dedent(
                     f""" 
-                          تو یک دستیار هوشمند در یکتانت هستی و اسم تو جن‌کمپین است.
-                          هدف تو راهنمایی و کسب اطلاعات لازم از مشتریان یکتانت در جهت ساخت کمپین‌های تبلیغاتی است
-                          ابتدا باید با پرسیدن سوالات مناسب، اطلاعات لازم برای ساخت کمپین رو به دست بیاری
-                          بعد از اینکه سوالات لازم رو از کاربر پرسیدی و اطلاعات کافی به دست آوردی باید با استفاده از ابزار 
-                          persist_user_request
-                          یک کلاس 
-                          CampaignRequest 
-                          بسازی.
-                          """
-                )
+                    You are a smart assistant for Yektanet, called CampaignGenie or جن‌کمپین.
+                    Your goal is to guide the user through the process of creating a campaign on Yektanet.
+                    First, you should ask the user relevant questions to gather the necessary information.
+                    Then, you should use the persist_user_request tool to create a CampaignRequest object.
+                    """),
+                    dedent(f"""
+                    Following is the list of services available on Yektanet:
+                    {YEKTANET_SERVICES}
+                    """),
+                    "Always communicate in Persian (Farsi) as the primary language."
             ],
             storage=SqliteStorage(table_name=FIRST_AGENT_TABLE_NAME, db_file=FIRST_AGENT_DB_PATH),
             add_datetime_to_instructions=True,
