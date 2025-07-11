@@ -16,6 +16,17 @@ from pages.crud import (
     fetch_latest_campaign_request,
     insert_campaign_plan,
 )
+from pages.config import (
+    OPENAI_BASE_URL,
+    get_openai_api_key,
+    GPT_MODEL_ID,
+    FIRST_AGENT_DB_PATH,
+    CAMPAIGN_PLANNER_DB_PATH,
+    FIRST_AGENT_TABLE_NAME,
+    CAMPAIGN_PLANNER_TABLE_NAME,
+    AGENT_DEBUG_MODE,
+    get_tasks_dir_path,
+)
 
 
 def persist_user_request(user_request: CampaignRequest) -> None:
@@ -31,9 +42,9 @@ class FirstAgent:
         self.agent = Agent(
             name="Greetings Agent",
             model=OpenAIChat(
-                id="gpt-4.1-mini",
-                base_url="https://api.metisai.ir/openai/v1",
-                api_key=os.environ["METIS_API_KEY"],
+                id=GPT_MODEL_ID,
+                base_url=OPENAI_BASE_URL,
+                api_key=get_openai_api_key(),
             ),
             tools=[persist_user_request],
             # TODO: Change the instruction to english.
@@ -51,7 +62,7 @@ class FirstAgent:
                           """
                 )
             ],
-            storage=SqliteStorage(table_name="first_agent", db_file="campaign_genie.db"),
+            storage=SqliteStorage(table_name=FIRST_AGENT_TABLE_NAME, db_file=FIRST_AGENT_DB_PATH),
             add_datetime_to_instructions=True,
             # Adds the history of the conversation to the messages
             add_history_to_messages=True,
@@ -60,7 +71,7 @@ class FirstAgent:
             # Adds markdown formatting to the messages
             markdown=True,
             session_id=session_id,
-            debug_mode=True,
+            debug_mode=AGENT_DEBUG_MODE,
         )
 
     def respond(self, user_message: str):
@@ -76,9 +87,9 @@ class CampaignPlanner:
         self.agent = Agent(
             name="Campaign Planner Agent",
             model=OpenAIChat(
-                id="gpt-4.1-mini",
-                base_url="https://api.metisai.ir/openai/v1",
-                api_key=os.environ["METIS_API_KEY"],
+                id=GPT_MODEL_ID,
+                base_url=OPENAI_BASE_URL,
+                api_key=get_openai_api_key(),
             ),
             tools=[],
             goal="Create a CampaignPlan to handle the given UserRequest in persian",
@@ -93,7 +104,7 @@ class CampaignPlanner:
                           Also, related documents names and types are provided to make you aware of the available
                                   documents in the knowledge base.
                           """)],
-            storage=SqliteStorage(table_name="campaign_planner", db_file="campaign_genie.db"),
+            storage=SqliteStorage(table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH),
 
             add_datetime_to_instructions=True,
             # Adds the history of the conversation to the messages
@@ -103,7 +114,7 @@ class CampaignPlanner:
             # Adds markdown formatting to the messages
             markdown=True,
             session_id=session_id,
-            debug_mode=True,
+            debug_mode=AGENT_DEBUG_MODE,
             response_model=CampaignPlan,
             retriever=campaign_planner_retriever,
             search_knowledge=True,
@@ -129,7 +140,7 @@ class CampaignPlanner:
 
         task = Task(type="confirm_campaign_plan", description="Confirm the campaign plan or edit it if needed", 
                     status="pending", session_id=self.agent.session_id)
-        with open(f"files/tasks/{uuid.uuid4()}.json", "w") as f:
+        with open(f"{get_tasks_dir_path()}/{uuid.uuid4()}.json", "w") as f:
             f.write(task.model_dump_json())
 
         return campaign_plan

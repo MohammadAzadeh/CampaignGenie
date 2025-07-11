@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import argparse
 import contextlib
 import json
 from datetime import datetime
-import pathlib
 import sqlite3
 from typing import Any, Callable, ContextManager, Sequence
 
 from pages.models import CampaignPlan, CampaignRequest
+from pages.config import get_db_connection_path
 
-_DB_PATH = pathlib.Path(__file__).with_name("campaign_genie.db")
+_DB_PATH = get_db_connection_path()
 
 
 @contextlib.contextmanager

@@ -8,10 +8,18 @@ from agno.knowledge.document import DocumentKnowledgeBase
 from agno.document import Document
 from agno.vectordb.lancedb import LanceDb, SearchType
 from agno.embedder.openai import OpenAIEmbedder
-from models import UserRequest
+from pages.models import CampaignRequest
+from pages.config import (
+    get_documents_csv_path,
+    get_vector_db_uri,
+    VECTOR_DB_TABLE_NAME,
+    OPENAI_BASE_URL,
+    get_openai_api_key,
+    EMBEDDING_MODEL_ID,
+)
 
-# TODO: Move all Storage Config to a file
-documents_df = pd.read_csv("pages/files/CampaignGenieDocuments - Documents.csv")
+# Load documents from CSV file
+documents_df = pd.read_csv(get_documents_csv_path())
 
 # Create Document instances
 documents = []
@@ -28,20 +36,20 @@ for _, row in documents_df.iterrows():
 knowledge_base = DocumentKnowledgeBase(
     documents=documents,
     vector_db=LanceDb(
-        table_name="recipes",
-        uri="pages/files/tmp/lancedb",
+        table_name=VECTOR_DB_TABLE_NAME,
+        uri=get_vector_db_uri(),
         search_type=SearchType.vector,
         embedder=OpenAIEmbedder(
-            id="text-embedding-3-small",
-            base_url="https://api.metisai.ir/openai/v1",
-            api_key=os.environ["METIS_API_KEY"],
+            id=EMBEDDING_MODEL_ID,
+            base_url=OPENAI_BASE_URL,
+            api_key=get_openai_api_key(),
         ),
     ),
 )
 
 
 # Uncomment to load documents again.
-# knowledge_base.load(recreate=True)
+# knowledge_base.load(recreate=False)
 
 
 def campaign_planner_retriever(
@@ -72,23 +80,23 @@ def campaign_planner_retriever(
         return None
 
 
-def get_documents_for_user_request(user_request: UserRequest) -> str:
+def get_documents_for_user_request(campaign_request: CampaignRequest) -> str:
     """
-    Retrieve relevant documents based on business_detail and goal fields from UserRequest.
+    Retrieve relevant documents based on business_detail and goal fields from CampaignRequest.
     Generate a formatted message with top 10 documents including names and content types.
     
     Args:
-        user_request (UserRequest): The user request containing business details and goal
+        campaign_request (CampaignRequest): The request containing business details and goal
         
     Returns:
         str: Formatted message containing document information
     """
     try:
         # Create a comprehensive search query from business details and goal
-        business_name = user_request.business_detail.name
-        business_type = user_request.business_detail.type
-        business_description = user_request.business_detail.description or ""
-        goal = user_request.goal
+        business_name = campaign_request.business.name
+        business_type = campaign_request.business.type
+        business_description = campaign_request.business.description or ""
+        goal = campaign_request.goal
         
         # Build search query combining business info and goal
         search_query = f"{business_name} {business_type} {business_description} {goal}"
