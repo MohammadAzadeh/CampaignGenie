@@ -15,9 +15,15 @@ class EchoAgent:
 # Streamlit chat UI
 st.title("Chat with Agent")
 
+
 if "session_id" not in st.session_state:
     st.session_state["session_id"] = str(uuid.uuid4())
     print("SessionID", st.session_state["session_id"])
+
+# Display session ID
+if "session_id" in st.session_state:
+    st.markdown("**Session ID:**")
+    st.code(st.session_state['session_id'], language="text")
 
 if "agent" not in st.session_state:
     st.session_state["agent"] = FirstAgent(session_id=st.session_state["session_id"])
@@ -46,8 +52,9 @@ if "messages" not in st.session_state:
 # Display chat history using chat bubbles
 for row in st.session_state["messages"]:
     with st.chat_message(row["sender"]):
-        # Detect Persian (RTL) text
         message = row["message"]
+        if message is None:
+            message = ""        # Detect Persian (RTL) text
         is_rtl = any(
             "\u0600" <= c <= "\u06FF" or "\u0750" <= c <= "\u077F" or "\u08A0" <= c <= "\u08FF" for c in message
         )
@@ -66,6 +73,38 @@ if user_input:
     agent_msg = {"sender": "Assistant", "message": agent_response}
     st.session_state["messages"].append(agent_msg)
     st.rerun()
+
+# Session management in sidebar
+st.sidebar.markdown("### Session Management")
+
+# Input for session ID
+# new_session_id = st.sidebar.text_input("Enter Session ID to resume:", key="session_input")
+new_session_id = st.sidebar.text_input(
+    "Enter Session ID to resume:",  # Descriptive label for accessibility
+    value=st.session_state['session_id'], 
+    key="session_input", 
+    label_visibility="collapsed"  # This hides the label visually
+)
+# Resume session button
+if st.sidebar.button("Resume Session", type="secondary"):
+    if new_session_id:
+        st.session_state["session_id"] = new_session_id
+        st.session_state["agent"] = FirstAgent(session_id=new_session_id)
+        from pages.agents import SqliteStorage
+        s: SqliteStorage = st.session_state["agent"].agent.storage
+        # Load messages for the new session
+        messages: List[Message] = st.session_state["agent"].agent.get_messages_for_session(new_session_id)
+        for m in messages:
+            print(m)
+            if m.role == "user":
+                st.session_state["messages"].append({"sender": m.role, "message": m.content[0]['text']})   
+            elif m.role == "assistant":
+                st.session_state["messages"].append({"sender": m.role, "message": m.content})
+        st.rerun()
+    else:
+        st.sidebar.error("Please enter a session ID")
+
+st.sidebar.markdown("---")
 
 if st.sidebar.button("Clear Chat History", type="primary"):
     st.session_state["messages"] = []

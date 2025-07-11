@@ -58,7 +58,6 @@ class MarketingExperience(BaseModel):
 
 
 class CampaignRequest(BaseModel):
-    advertiser_id: int = Field(..., title="ID of the advertiser in Yektanet")
     business: Business = Field(..., title="Business")
     goal: str = Field(..., description="Advertising or marketing goal")
     target_audience: str = Field(..., title="Target Audience")
@@ -71,14 +70,16 @@ class CampaignRequest(BaseModel):
         description="List of previous marketing experiences",
         default_factory=list,
     )
-    status: str = Field(default="جدید", title="Status")
-    created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
-    session_id: str = Field(..., title="Session ID")
 
     class Config:
         validate_assignment = True
         frozen = True
 
+class CampaignRequestDB(CampaignRequest):
+    advertiser_id: int = Field(..., title="ID of the advertiser in Yektanet")
+    status: Literal["new", "in_progress", "completed", "failed"] = Field(default="new", title="Status")
+    created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
+    session_id: str = Field(..., title="Session ID")
 
 class CampaignPlan(BaseModel):
     id: int

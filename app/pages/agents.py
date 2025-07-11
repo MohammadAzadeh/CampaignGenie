@@ -3,13 +3,14 @@ from __future__ import annotations
 import os
 import uuid
 from textwrap import dedent
+from typing import Optional
 
 from agno.agent import Agent, Message
 from agno.models.openai import OpenAIChat
 from agno.storage.sqlite import SqliteStorage
+from datetime import datetime
 
-
-from pages.models import CampaignRequest, CampaignPlan, Task
+from pages.models import CampaignRequest, CampaignRequestDB, CampaignPlan, Task
 from pages.kb import campaign_planner_retriever, get_documents_for_user_request
 from pages.crud import (
     insert_campaign_request,
@@ -29,16 +30,22 @@ from pages.config import (
 )
 
 
-def persist_user_request(user_request: CampaignRequest) -> None:
+def persist_user_request(user_request: CampaignRequest, agent: Optional[Agent] = None, **kwargs) -> None:
     """Store the request for this session via the CRUD helpers."""
-
+    user_request = CampaignRequestDB(
+        **user_request.model_dump(),
+        session_id=agent.session_id,
+        advertiser_id=agent.user_id,
+        created_at=datetime.now(),
+        status="new"
+        )
     insert_campaign_request(user_request)
 
 
 class FirstAgent:
     """Collects all details needed to build a CampaignRequest."""
 
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str, user_id: str = "1"):
         self.agent = Agent(
             name="Greetings Agent",
             model=OpenAIChat(
@@ -70,9 +77,14 @@ class FirstAgent:
             num_history_responses=5,
             # Adds markdown formatting to the messages
             markdown=True,
+            user_id=user_id,
             session_id=session_id,
             debug_mode=AGENT_DEBUG_MODE,
+            telemetry=False,
+            monitoring=False,
         )
+        self.agent.initialize_agent()
+        self.agent.read_from_storage(session_id=session_id)
 
     def respond(self, user_message: str):
         reply = self.agent.run(Message(role="user", content=[{"type": "text", "text": user_message}]))

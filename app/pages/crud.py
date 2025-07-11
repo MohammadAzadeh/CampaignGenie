@@ -6,7 +6,7 @@ from datetime import datetime
 import sqlite3
 from typing import Any, Callable, ContextManager, Sequence
 
-from pages.models import CampaignPlan, CampaignRequest
+from pages.models import CampaignPlan, CampaignRequest, CampaignRequestDB
 from pages.config import get_db_connection_path
 
 _DB_PATH = get_db_connection_path()
@@ -86,7 +86,7 @@ class CampaignRequestCRUD(_BaseCRUD):
     _table = "campaign_requests"
 
     @classmethod
-    def insert(cls, cr: CampaignRequest) -> None:
+    def insert(cls, cr: CampaignRequestDB) -> None:
         cls._exec(
             f"""
             INSERT INTO {cls._table} (
@@ -106,7 +106,7 @@ class CampaignRequestCRUD(_BaseCRUD):
                 cr.total_budget,
                 cr.landing.address,
                 cr.landing.type,
-                json.dumps(cr.experiences, ensure_ascii=False),
+                json.dumps([ex.model_dump_json() for ex in cr.experiences], ensure_ascii=False),
                 cr.status,
                 cr.created_at.isoformat(timespec="seconds"),
                 cr.session_id,
@@ -155,7 +155,7 @@ class CampaignPlanCRUD(_BaseCRUD):
         return CampaignPlan.parse_raw(rows[0]["data"]) if rows else None
 
 
-def insert_campaign_request(cr: CampaignRequest) -> None:  # noqa: D401
+def insert_campaign_request(cr: CampaignRequestDB) -> None:  # noqa: D401
     """Insert *one* `CampaignRequest`.  Thin wrapper around the CRUD class."""
 
     CampaignRequestCRUD.insert(cr)

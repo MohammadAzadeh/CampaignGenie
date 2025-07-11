@@ -12,7 +12,7 @@ from typing import Optional
 # ============================================================================
 
 # Main SQLite database path
-DB_PATH = pathlib.Path(__file__).with_name("campaign_genie.db")
+DB_PATH = pathlib.Path("app/pages/files/campaign_genie.db")
 
 # Agent storage database paths
 FIRST_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
@@ -49,6 +49,7 @@ EMBEDDING_MODEL_ID = "text-embedding-3-small"
 # Agent storage table names
 FIRST_AGENT_TABLE_NAME = "first_agent"
 CAMPAIGN_PLANNER_TABLE_NAME = "campaign_planner"
+AGENT_DEBUG_MODE = True
 
 
 # ============================================================================
