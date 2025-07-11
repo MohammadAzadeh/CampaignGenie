@@ -18,6 +18,7 @@ DB_PATH = pathlib.Path("app/pages/files/campaign_genie.db")
 FIRST_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
 CAMPAIGN_PLANNER_DB_PATH = "app/pages/files/campaign_genie.db"
 KBGK_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
+CRAWLER_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
 
 # Vector database configuration
 VECTOR_DB_URI = "app/pages/files/tmp/lancedb"
@@ -51,6 +52,7 @@ EMBEDDING_MODEL_ID = "text-embedding-3-small"
 FIRST_AGENT_TABLE_NAME = "first_agent"
 CAMPAIGN_PLANNER_TABLE_NAME = "campaign_planner"
 KBGK_AGENT_TABLE_NAME = "kbgk_agent"
+CRAWLER_AGENT_TABLE_NAME = "crawler_agent"
 AGENT_DEBUG_MODE = True
 
 

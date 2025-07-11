@@ -8,10 +8,12 @@ from typing import Optional
 from agno.agent import Agent, Message
 from agno.models.openai import OpenAIChat
 from agno.storage.sqlite import SqliteStorage
+from agno.tools.crawl4ai import Crawl4aiTools
+
 from datetime import datetime
 
 from pages.models import CampaignRequest, CampaignRequestDB, CampaignPlan, Task
-from pages.kb import campaign_planner_retriever, get_documents_for_user_request, knowledge_base
+from pages.kb import campaign_planner_retriever, get_documents_for_user_request, knowledge_base, search_yektanet, add_documents_to_knowledge_base
 from pages.crud import (
     insert_campaign_request,
     fetch_latest_campaign_request,
@@ -30,7 +32,9 @@ from pages.config import (
     KBGK_AGENT_TABLE_NAME,
     AGENT_DEBUG_MODE,
     get_tasks_dir_path,
-)
+    CRAWLER_AGENT_DB_PATH,
+    CRAWLER_AGENT_TABLE_NAME,
+    )
 
 
 def persist_user_request(user_request: CampaignRequest, agent: Optional[Agent] = None, **kwargs) -> None:
@@ -171,26 +175,38 @@ class KbgkAgent:
                 base_url=OPENAI_BASE_URL,
                 api_key=get_openai_api_key(),
             ),
-            tools=[],
+            tools=[agentic_crawl_url,
+                   search_yektanet,
+                   add_documents_to_knowledge_base],
             knowledge=knowledge_base,
             search_knowledge=True,
-            update_knowledge=True,
             instructions=[
                 dedent(
                     """
+                    
                     You are a Knowledge Base Gate Keeper Agent responsible for generating and managing documents 
-                    for the knowledge base. Your role is to:
+                    for the knowledge base. 
+                    
+                    The knowledge base is a collection of documents that are related to Yektanet. 
+                    (An Online Iranian Digital Marketing Platform)
+                    Your role is to:
                     
                     1. Help users create new documents for the knowledge base
                     2. Ensure documents are properly formatted and contain relevant information
                     3. Guide users through the document creation process
-                    4. Validate document content and structure
+                    4. Only use refrences to generate answers or documents.
                     5. Provide suggestions for document improvements
+                    6. Search the knowledge base using `search_knowledge_base` for required information.
+                    7. When information from knowledge base is not accurate or enough, 
+                        Use the `search_yektanet` tool to search the Yektanet's website for more articles and information.
+                        You can search yektanet without asking for user's permision.
+                    8. Use `agentic_crawl_url` tool to crawl URLs returned by `search_yektanet` tool.
+                    9. Finally, use `add_documents_to_knowledge_base` to add the document to knowledge-base.
                     
                     You should be helpful, thorough, and ensure that all documents meet quality standards
                     before they are inserted into the knowledge base.
                     
-                    Always communicate in Persian (Farsi) as the primary language.
+                        Always communicate in Persian (Farsi) as the primary language.
 
                     **YOU SHOULD ALWASY ASK FOR CONFIRMATION BEFORE INSERTING DOCUMENTS INTO THE KNOWLEDGE BASE.**
                     """
@@ -213,3 +229,36 @@ class KbgkAgent:
     def respond(self, user_message: str):
         reply = self.agent.run(Message(role="user", content=[{"type": "text", "text": user_message}]))
         return reply.content
+
+
+def agentic_crawl_url(url: str, goal: str, agent: Optional[Agent] = None, **kwargs):
+    """
+    Crawl the given url for the given goal.
+    The agent will use the Crawl4aiTools to crawl the url.
+    The agent will return the crawled data.
+    """
+    crawler_agent = Agent(
+        session_id=agent.session_id,
+        user_id=agent.user_id,
+        model=OpenAIChat(
+                    id=GPT_MODEL_ID,
+                    base_url=OPENAI_BASE_URL,
+                    api_key=get_openai_api_key(),
+                ),
+        tools=[Crawl4aiTools(max_length=None)], 
+        instructions=[dedent(f"""
+                    You are a crawler agent that crawls the given url for the given goal.
+                    Always communicate in Persian (Farsi) as the primary language.
+                    """),
+                    ],
+        storage=SqliteStorage(table_name=CRAWLER_AGENT_TABLE_NAME, db_file=CRAWLER_AGENT_DB_PATH),
+        show_tool_calls=True,
+        debug_mode=AGENT_DEBUG_MODE,
+        telemetry=False,
+        monitoring=False,
+        )
+    reply = crawler_agent.run(Message(role="user", content=[
+        {"type": "text", 
+         "text": f"Crawl the following url: {url} for the following goal: {goal}"}
+         ]))
+    return reply.content

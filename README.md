@@ -71,6 +71,13 @@ export METIS_API_KEY="sk‑..."
 python -m streamlit run -m app.ui
 ```
 
+#### 2.1 To enable crawling Crawl4AI
+```bash
+pip install crawl4ai
+sudo apt-get install libavif16
+playwright install
+```
+
 ---
 
 ## 🛠 Development Workflow with Docker

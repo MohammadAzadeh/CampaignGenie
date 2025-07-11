@@ -8,3 +8,4 @@ lancedb
 streamlit
 requests
 beautifulsoup4
+crawl4ai

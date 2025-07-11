@@ -51,7 +51,30 @@ knowledge_base = DocumentKnowledgeBase(
 
 
 # Uncomment to load documents again.
-# knowledge_base.load(recreate=False)
+knowledge_base.load(recreate=False)
+def add_documents_to_knowledge_base(name: str, content: str, meta_data: dict):
+    """
+    Add a document to the knowledge base.
+    Args:
+        name (str): The name of the document
+        content (str): The content of the document, this field to embedded and is used later for retrieval. 
+        It should contain unique and meaningful words and expressions that best describe the full_text.
+        meta_data (dict): The metadata of the document. It must have following keys:
+            - contenttype: The type of the content. One of "casestudy" or "help".(Ask user explicitly)
+            - full_text: The full text of the document.
+            - url(optional): The reference url of the document.
+
+    Returns:
+        str: result of function, either success or error.
+    Arg"""
+    try:
+        id = len(knowledge_base.documents) + 1
+        doc = Document(id=id, name=name, content=content, meta_data=meta_data)
+        knowledge_base.add_document_to_knowledge_base(doc)
+        return f"Document added to knowledge base successfully"
+    except Exception as e:
+        return f"Error in adding document to knowledge base: {str(e)}"
+        
 
 
 def campaign_planner_retriever(
@@ -79,7 +102,7 @@ def campaign_planner_retriever(
         return documents
     except Exception as e:
         print(f"Error during vector database search: {str(e)}")
-        return None
+        return f"Error during vector database search: {str(e)}"
 
 
 def get_documents_for_user_request(campaign_request: CampaignRequest) -> str:
