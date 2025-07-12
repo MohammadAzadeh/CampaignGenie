@@ -18,6 +18,7 @@ from pages.crud import (
     insert_campaign_request,
     fetch_latest_campaign_request,
     insert_campaign_plan,
+    update_campaign_plan
 )
 from pages.prompts import YEKTANET_SERVICES
 from pages.config import (
@@ -47,6 +48,65 @@ def persist_user_request(user_request: CampaignRequest, agent: Optional[Agent] =
         status="new"
         )
     insert_campaign_request(user_request)
+    task = Task(type="generate_campaign_plan", description="Generate a Campaign Plan for given CampaignRequest", 
+            status="pending", session_id=agent.session_id)
+    with open(f"{get_tasks_dir_path()}/{uuid.uuid4()}.json", "w") as f:
+        f.write(task.model_dump_json())
+
+def ask_from_knowledge_base(
+    question: str
+) -> str:
+    """
+    Answers a question using the knowledge base.
+    It creates an agent with the knowledge base and asks the question to it.
+    
+    Args:
+        question (str): The question to answer
+
+    Returns:
+        str: The answer to the question
+    """
+    try:
+        agent = Agent(
+            model=OpenAIChat(
+                id=GPT_MODEL_ID,
+                base_url=OPENAI_BASE_URL,
+                api_key=get_openai_api_key(),
+            ),
+            tools=[campaign_planner_retriever],
+            instructions=[
+                "Always search your knowledge before answering the question.",
+                "Only include the output in your response. No other text.",
+                "Related documents are provided to give you an idea of the available documents.",
+                "In each call num_documents MUST BE ALWAYS 2, instead you can do a few calls to get more information.",
+            ],
+            markdown=True,
+            debug_mode=AGENT_DEBUG_MODE,
+            telemetry=False,
+            monitoring=False,
+        )
+        documents = knowledge_base.search(query=question, num_documents=10)
+        
+        if not documents:
+            return "No documents found"
+        
+        # Generate formatted message with document information
+        message_parts = []
+        
+        for i, doc in enumerate(documents, 1):
+            doc_dict = doc.to_dict()
+            name = doc_dict.get('name', 'نامشخص')
+            content_type = doc_dict.get('meta_data', {}).get('contenttype', 'نامشخص')
+            
+            message_parts.append(f"{i}. {name} ({content_type})")
+        
+        related_docs = "\n\n".join(message_parts)
+    
+        response = agent.run(f"Question: {question}\n\n Documents: {related_docs}")
+        return response
+    except Exception as e:
+        print(f"Error during knowledge base search: {str(e)}")
+        return f"Error during knowledge base search: {str(e)}"
 
 
 class FirstAgent:
@@ -102,6 +162,9 @@ class CampaignPlanner:
 
     def __init__(self, session_id: str):
         self.session_id = session_id
+        # storage = SqliteStorage(table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH)
+        # storage.delete_session(session_id)
+
         self.agent = Agent(
             name="Campaign Planner Agent",
             model=OpenAIChat(
@@ -109,18 +172,17 @@ class CampaignPlanner:
                 base_url=OPENAI_BASE_URL,
                 api_key=get_openai_api_key(),
             ),
-            tools=[],
-            goal="Create a CampaignPlan to handle the given UserRequest in persian",
+            tools=[
+                # search_yektanet, 
+                # agentic_crawl_url,
+                # ask_from_knowledge_base,
+                ],
+            goal="Create a CampaignPlan to handle the given CampaignRequest in persian",
             instructions=[dedent("""
-                          You're given a UserRequest to create a digital marketing campaign in Yektanet. 
-                          Also, previous campaign plans and details related to similar businesses are provided. 
-
-                          * CampaignPlan.needs_confirmation should be True, If provided samples are not similar enough.  
-                          * Search the knowledge_base using given UserRequest in persian, include business type and goal.
-                          * Only call the search_knowledge tool once in each response.    
-
-                          Also, related documents names and types are provided to make you aware of the available
-                                  documents in the knowledge base.
+                          You're given a CampaignRequest to create a digital marketing campaign in Yektanet.                                                   
+                          Related documentsare provided to you.
+                        
+                        * If a similar campaign plan is provided, use it as a reference.
                           """)],
             storage=SqliteStorage(table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH),
 
@@ -134,34 +196,49 @@ class CampaignPlanner:
             session_id=session_id,
             debug_mode=AGENT_DEBUG_MODE,
             response_model=CampaignPlan,
-            retriever=campaign_planner_retriever,
+            # retriever=campaign_planner_retriever,
             search_knowledge=True,
         )
 
-    def respond(self) -> CampaignPlan:
-        campaign_request = fetch_latest_campaign_request(self.session_id)
+    def resume(self, feedbacks: list[str]) -> CampaignPlan:
+        try:
+            reply = self.agent.run(Message(role="user", content=[{"type": "text", "text": f"Update accoring to user feedback {feedbacks}"}]))
+            campaign_plan: CampaignPlan = reply.content
 
-        if campaign_request is None:
-            raise RuntimeError("No CampaignRequest stored for this session yet.")
+            update_campaign_plan(self.session_id, campaign_plan)
+            return "CampaignPlan updated successfully"
+        except Exception as e:
+            print(f"Error in CampaignPlanner: {e}")
+            return None
+    
+    def respond(self) -> str:
+        try:
+            campaign_request = fetch_latest_campaign_request(self.session_id)
 
-        # Get relevant documents for the user request
-        documents_info = get_documents_for_user_request(campaign_request)
+            if campaign_request is None:
+                raise RuntimeError("No CampaignRequest stored for this session yet.")
 
-        # Combine user request with documents info
-        combined_input = f"CampaignRequest:\n{campaign_request.model_dump_json()}\n"
-        combined_input += f"Related documents:\n{documents_info}"
+            # Get relevant documents for the user request
+            documents_info = get_documents_for_user_request(campaign_request)
 
-        reply = self.agent.run(combined_input)
-        campaign_plan: CampaignPlan = reply.content
+            # Combine user request with documents info
+            combined_input = f"CampaignRequest:\n{campaign_request.model_dump_json()}\n"
+            combined_input += f"Related documents:\n{documents_info}"
 
-        insert_campaign_plan(self.session_id, campaign_plan)
+            reply = self.agent.run(combined_input)
+            campaign_plan: CampaignPlan = reply.content
+            
 
-        task = Task(type="confirm_campaign_plan", description="Confirm the campaign plan or edit it if needed", 
-                    status="pending", session_id=self.agent.session_id)
-        with open(f"{get_tasks_dir_path()}/{uuid.uuid4()}.json", "w") as f:
-            f.write(task.model_dump_json())
+            insert_campaign_plan(self.session_id, campaign_plan)
 
-        return campaign_plan
+            task = Task(type="confirm_campaign_plan", description="Confirm the campaign plan or edit it if needed", 
+                        status="pending", session_id=self.agent.session_id)
+            with open(f"{get_tasks_dir_path()}/{uuid.uuid4()}.json", "w") as f:
+                f.write(task.model_dump_json())
+            return "CampaignPlan generated successfully"
+        except Exception as e:
+            print(f"Error in CampaignPlanner: {e}")
+            return None
 
 
 class KbgkAgent:

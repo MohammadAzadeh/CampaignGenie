@@ -52,6 +52,7 @@ knowledge_base = DocumentKnowledgeBase(
 
 # Uncomment to load documents again.
 knowledge_base.load(recreate=False)
+
 def add_documents_to_knowledge_base(name: str, content: str, meta_data: dict):
     """
     Add a document to the knowledge base.
@@ -78,16 +79,13 @@ def add_documents_to_knowledge_base(name: str, content: str, meta_data: dict):
 
 
 def campaign_planner_retriever(
-    query: str, agent: Optional[Agent] = None, **kwargs
+    query: str, num_documents: int = 2
 ) -> Optional[list[dict]]:
     """
     Custom retriever function to search the vector database for relevant documents.
 
     Args:
         query (str): The search query string
-        agent (Agent): The agent instance making the query
-        num_documents (int): Number of documents to retrieve (default: 5)
-        **kwargs: Additional keyword arguments
 
     Returns:
         Optional[list[dict]]: List of retrieved documents or None if search fails
@@ -95,9 +93,9 @@ def campaign_planner_retriever(
     try:
         case_studies = knowledge_base.search(query=query, num_documents=2, filters={"contenttype": "casestudy"})
         helps = knowledge_base.search(query=query, num_documents=2, filters={"contenttype": "help"})
-        print("len", len(case_studies), len(helps))
-        # TODO: Add the name and metadata['contenttype'] of top 10 documents to the response
-        documents = case_studies + helps
+        sample_campaign_plans = knowledge_base.search(query=query, num_documents=2, filters={"contenttype": "campaign_plan"})   
+        print("len", len(case_studies), len(helps), len(sample_campaign_plans))
+        documents = case_studies + helps + sample_campaign_plans
         documents = [doc.to_dict() for doc in documents]
         return documents
     except Exception as e:
@@ -120,15 +118,18 @@ def get_documents_for_user_request(campaign_request: CampaignRequest) -> str:
         # Create a comprehensive search query from business details and goal
         business_name = campaign_request.business.name
         business_type = campaign_request.business.type
-        business_description = campaign_request.business.description or ""
+        # business_description = campaign_request.business.description or ""
         goal = campaign_request.goal
         
         # Build search query combining business info and goal
-        search_query = f"{business_name} {business_type} {business_description} {goal}"
+        search_query = f"{business_type} {business_name} {goal}"
         
-        # Search for relevant documents (top 10)
-        documents = knowledge_base.search(query=search_query, num_documents=10)
+        case_studies = knowledge_base.search(query=search_query, num_documents=2, filters={"contenttype": "casestudy"})
+        helps = knowledge_base.search(query=search_query, num_documents=2, filters={"contenttype": "help"})
+        sample_campaign_plans = knowledge_base.search(query=search_query, num_documents=2, filters={"contenttype": "campaign_plan"})  
         
+        documents = case_studies + helps + sample_campaign_plans
+
         if not documents:
             return "No documents found"
         
@@ -139,8 +140,8 @@ def get_documents_for_user_request(campaign_request: CampaignRequest) -> str:
             doc_dict = doc.to_dict()
             name = doc_dict.get('name', 'نامشخص')
             content_type = doc_dict.get('meta_data', {}).get('contenttype', 'نامشخص')
-            
-            message_parts.append(f"{i}. {name} ({content_type})")
+            full_text = doc_dict.get('meta_data', {}).get('full_text', 'نامشخص')
+            message_parts.append(f"{i}. {name} ({content_type}) {full_text}")
         
         return "\n".join(message_parts)
         

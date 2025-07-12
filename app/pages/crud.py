@@ -106,7 +106,7 @@ class CampaignRequestCRUD(_BaseCRUD):
                 cr.total_budget,
                 cr.landing.address,
                 cr.landing.type,
-                json.dumps([ex.model_dump_json() for ex in cr.experiences], ensure_ascii=False),
+                json.dumps([ex.model_dump_json() for ex in (cr.experiences if cr.experiences else [])], ensure_ascii=False),
                 cr.status,
                 cr.created_at.isoformat(timespec="seconds"),
                 cr.session_id,
@@ -121,14 +121,57 @@ class CampaignRequestCRUD(_BaseCRUD):
     def latest_for_session(cls, session_id: str) -> CampaignRequest | None:
         rows = cls._query(
             f"""
-            SELECT data FROM {cls._table}
+            SELECT * FROM {cls._table}
             WHERE session_id = ?
             ORDER BY id DESC
             LIMIT 1
             """,
             (session_id,),
         )
-        return CampaignRequest.parse_raw(rows[0]["data"]) if rows else None
+        if not rows:
+            return None
+        
+        row = rows[0]
+        # Convert the database row back to CampaignRequest
+        from pages.models import Business, Landing, MarketingExperience
+        
+        # Parse locations JSON
+        locations = json.loads(row["locations"]) if row["locations"] else []
+        
+        # Parse experiences JSON
+        experiences = []
+        if row["experiences"]:
+            experiences_data = json.loads(row["experiences"])
+            experiences = [MarketingExperience.parse_raw(ex) for ex in experiences_data]
+        
+        # Create Business object
+        business = Business(
+            name=row["business_name"],
+            type=row["business_type"]
+        )
+        
+        # Create Landing object
+        landing = Landing(
+            address=row["landing_address"],
+            type=row["landing_type"]
+        )
+        
+        # Create CampaignRequest object
+        return CampaignRequest(
+            id=row["id"],
+            advertiser_id=row["advertiser_id"],
+            goal=row["goal"],
+            business=business,
+            target_audience=row["target_audience"],
+            locations=locations,
+            daily_budget=row["daily_budget"],
+            total_budget=row["total_budget"],
+            landing=landing,
+            experiences=experiences,
+            status=row["status"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            session_id=row["session_id"]
+        )
 
 
 class CampaignPlanCRUD(_BaseCRUD):
@@ -140,7 +183,16 @@ class CampaignPlanCRUD(_BaseCRUD):
             f"INSERT INTO {cls._table} (session_id, data) VALUES (?, ?)",
             (session_id, plan.model_dump_json()),
         )
-
+    @classmethod
+    def update(cls, session_id: str, plan: CampaignPlan) -> None:
+        cls._exec(
+            f"""
+            UPDATE {cls._table}
+            SET data = ?
+            WHERE session_id = ?
+            """,
+            (plan.model_dump_json(), session_id),
+        )
     @classmethod
     def latest_for_session(cls, session_id: str) -> CampaignPlan | None:
         rows = cls._query(
@@ -157,8 +209,6 @@ class CampaignPlanCRUD(_BaseCRUD):
 
 def insert_campaign_request(cr: CampaignRequestDB) -> None:  # noqa: D401
     """Insert *one* `CampaignRequest`.  Thin wrapper around the CRUD class."""
-    if cr.experiences is None:
-        cr.experiences = []
     CampaignRequestCRUD.insert(cr)
 
 
@@ -178,6 +228,11 @@ def insert_campaign_plan(session_id: str, plan: CampaignPlan) -> None:  # noqa: 
     """Persist a `CampaignPlan` linked to an agent session."""
 
     CampaignPlanCRUD.insert(session_id, plan)
+
+def update_campaign_plan(session_id: str, plan: CampaignPlan) -> None:  # noqa: D401
+    """Persist a `CampaignPlan` linked to an agent session."""
+
+    CampaignPlanCRUD.update(session_id, plan)
 
 
 def fetch_latest_campaign_plan(session_id: str) -> CampaignPlan | None:  # noqa: D401

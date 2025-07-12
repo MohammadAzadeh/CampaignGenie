@@ -38,6 +38,55 @@ IRAN_PROVINCES: list[str] = [
 ]
 
 
+# Create Literal types for type safety
+CategoryType = Literal[
+    "بیماری و درمان",
+    "جراحی و خدمات زیبایی",
+    "سبک زندگی سالم",
+    "جشن‌ها و مراسمات",
+    "مراقبت زیبایی و بهداشت فردی",
+    "مد و پوشاک",
+    "ورزش",
+    "خودرو",
+    "املاک",
+    "مدرسه و کنکور سراسری",
+    "کسب و کار",
+    "اقتصاد",
+    "صنعت و کشاورزی",
+    "سرمایه شخصی",
+    "تکنولوژی",
+    "تجهیزات الکترونیک شخصی",
+    "بازی ویدیویی",
+    "کتاب و ادبیات",
+    "خدمات",
+    "سرگرمی و مهارت و هنر",
+    "مذهب",
+    "علم و دانش",
+    "تفریح",
+    "سفر و گردشگری",
+    "سینما و تلویزیون و تئاتر",
+    "موسیقی",
+    "عامه پسند",
+    "خانواده",
+    "روابط عاطفی",
+    "والدین",
+    "لوازم و تجهیزات خانه",
+    "ساخت و ساز و تغییر دکوراسیون",
+    "غذا و نوشیدنی",
+    "حیوانات خانگی",
+    "زبان آموزی",
+    "رمز ارز",
+    "دانشگاه و تحصیلات عالی",
+    "اشتغال",
+    "مهاجرت",
+    "حقوق",
+    "سیاست",
+    "اجتماعی"
+]
+
+UserSegmentType = CategoryType  # Same type since they use the same values
+
+
 class Landing(BaseModel):
     address: str = Field(..., title="address of the landing")
     type: str = Field(..., title="type of landing")
@@ -81,15 +130,42 @@ class CampaignRequestDB(CampaignRequest):
     created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
     session_id: str = Field(..., title="Session ID")
 
-class CampaignPlan(BaseModel):
-    id: int
-    needs_confirmation: bool
-    campaign_plan: str
 
+class CampaignConfig(BaseModel):
+    keywords: list[str] = Field(..., description="""Keywords to target, 
+                                it should be keywords that are related to the business 
+                                or intersting to the target audience""")
+    user_segments: list[UserSegmentType] = Field(
+        ..., 
+        description="User segments to target."
+    )
+    categories: list[CategoryType] = Field(
+        ..., 
+        description="Categories to target."
+    )
+
+class CampaignPlan(BaseModel):
+    type: Literal["native", "banner"] = Field(..., title="Campaign Type")
+    name: str = Field(..., title="Campaign Name")
+    business_description: str = Field(..., title="Business Description")
+    goal: str = Field(..., description="Goal of the campaign | What satisfies the business owner?")
+    description: str = Field(..., title="Campaign Description")
+    budget: int = Field(..., title="Daily Campaign Budget")
+    bidding_strategy: Literal["cpc"] = Field(..., title="Bidding Strategy")
+    bid_toman: int = Field(2000, title="Bid in Toman | Different from maximum cost per lead")
+    target_audience_description: str = Field(..., title="Target Audience Description")
+    targetign_config: CampaignConfig 
+    ads_description: list[str] = Field(..., title="Ads Description (Is used for generating ads)", default_factory=list)
+
+class CampaignPlanDB(CampaignPlan):
+    id: int
+    session_id: str
+    created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
 
 class Task(BaseModel):
-    type: Literal['confirm_campaign_plan', "generate_campaign_tasks"]
+    type: Literal["generate_campaign_plan", 'confirm_campaign_plan', "generate_campaign_plan"]
     description: str
-    status: Literal['pending', 'in_progress', 'completed', 'failed']
+    status: Literal['pending', 'retry_with_feedback', 'in_progress', 'completed', "completed_add_to_kb", 'failed']
     session_id: str
+    feedbacks: list[str] = Field(default_factory=list)
 
