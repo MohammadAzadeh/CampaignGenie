@@ -1,14 +1,12 @@
-import os
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
 from typing import Optional, List, Dict
 
-from agno.agent import Agent
 from agno.knowledge.document import DocumentKnowledgeBase
 from agno.document import Document
-from agno.vectordb.lancedb import LanceDb, SearchType
+from agno.vectordb.chroma import ChromaDb
 from agno.embedder.openai import OpenAIEmbedder
 from pages.models import CampaignRequest
 from pages.config import (
@@ -23,12 +21,14 @@ from pages.config import (
 # Load documents from CSV file
 documents_df = pd.read_csv(get_documents_csv_path())
 
+
 # Create Document instances
 documents = []
 for _, row in documents_df.iterrows():
     metadata = {
         "contenttype": row.get("metadata_contenttype"),
         "url": row.get("metadata_url"),
+        "name": row.get("name"),
         "full_text": row.get("full_text"),
     }
 
@@ -37,10 +37,10 @@ for _, row in documents_df.iterrows():
 
 knowledge_base = DocumentKnowledgeBase(
     documents=documents,
-    vector_db=LanceDb(
-        table_name=VECTOR_DB_TABLE_NAME,
-        uri=get_vector_db_uri(),
-        search_type=SearchType.vector,
+    vector_db=ChromaDb(
+        collection=VECTOR_DB_TABLE_NAME,
+        path=get_vector_db_uri(),
+        persistent_client=True,
         embedder=OpenAIEmbedder(
             id=EMBEDDING_MODEL_ID,
             base_url=OPENAI_BASE_URL,
@@ -49,9 +49,6 @@ knowledge_base = DocumentKnowledgeBase(
     ),
 )
 
-
-# Uncomment to load documents again.
-knowledge_base.load(recreate=False)
 
 def add_documents_to_knowledge_base(name: str, content: str, meta_data: dict):
     """
@@ -72,10 +69,9 @@ def add_documents_to_knowledge_base(name: str, content: str, meta_data: dict):
         id = len(knowledge_base.documents) + 1
         doc = Document(id=id, name=name, content=content, meta_data=meta_data)
         knowledge_base.add_document_to_knowledge_base(doc)
-        return f"Document added to knowledge base successfully"
+        return "Document added to knowledge base successfully"
     except Exception as e:
         return f"Error in adding document to knowledge base: {str(e)}"
-        
 
 
 def campaign_planner_retriever(
@@ -93,7 +89,7 @@ def campaign_planner_retriever(
     try:
         case_studies = knowledge_base.search(query=query, num_documents=2, filters={"contenttype": "casestudy"})
         helps = knowledge_base.search(query=query, num_documents=2, filters={"contenttype": "help"})
-        sample_campaign_plans = knowledge_base.search(query=query, num_documents=2, filters={"contenttype": "campaign_plan"})   
+        sample_campaign_plans = knowledge_base.search(query=query, num_documents=1, filters={"contenttype": "campaign_plan"})   
         print("len", len(case_studies), len(helps), len(sample_campaign_plans))
         documents = case_studies + helps + sample_campaign_plans
         documents = [doc.to_dict() for doc in documents]
@@ -138,12 +134,12 @@ def get_documents_for_user_request(campaign_request: CampaignRequest) -> str:
         
         for i, doc in enumerate(documents, 1):
             doc_dict = doc.to_dict()
-            name = doc_dict.get('name', 'نامشخص')
+            name = doc_dict.get('meta_data', {}).get('name', 'نامشخص')
             content_type = doc_dict.get('meta_data', {}).get('contenttype', 'نامشخص')
             full_text = doc_dict.get('meta_data', {}).get('full_text', 'نامشخص')
-            message_parts.append(f"{i}. {name} ({content_type}) {full_text}")
+            message_parts.append(f"{i}. {name} ({content_type}) \n {full_text}")
         
-        return "\n".join(message_parts)
+        return "\n=====\n".join(message_parts)
         
     except Exception as e:
         print(f"Error during document retrieval: {str(e)}")
@@ -246,3 +242,11 @@ def search_yektanet(query: str) -> List[Dict[str, str]]:
     except Exception as e:
         print(f"Error parsing Yektanet search results: {str(e)}")
         return []
+
+
+
+# Uncomment to load documents again.
+# knowledge_base.load(recreate=False)
+
+
+# print(knowledge_base.search(query="مدیریت کاربران", num_documents=1)[0].meta_data["name"])

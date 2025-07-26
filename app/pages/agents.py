@@ -25,6 +25,7 @@ from pages.config import (
     OPENAI_BASE_URL,
     get_openai_api_key,
     GPT_MODEL_ID,
+    MINI_GPT_MODEL_ID,
     FIRST_AGENT_DB_PATH,
     CAMPAIGN_PLANNER_DB_PATH,
     KBGK_AGENT_DB_PATH,
@@ -69,7 +70,7 @@ def ask_from_knowledge_base(
     try:
         agent = Agent(
             model=OpenAIChat(
-                id=GPT_MODEL_ID,
+                id=MINI_GPT_MODEL_ID,
                 base_url=OPENAI_BASE_URL,
                 api_key=get_openai_api_key(),
             ),
@@ -116,17 +117,21 @@ class FirstAgent:
         self.agent = Agent(
             name="Greetings Agent",
             model=OpenAIChat(
-                id=GPT_MODEL_ID,
+                id=MINI_GPT_MODEL_ID,
                 base_url=OPENAI_BASE_URL,
                 api_key=get_openai_api_key(),
             ),
-            tools=[persist_user_request],
+            tools=[
+                persist_user_request,
+                agentic_crawl_url],
             instructions=[
                 dedent(
                     f""" 
                     You are a smart assistant for Yektanet, called CampaignGenie or جن‌کمپین.
                     Your goal is to guide the user through the process of creating a campaign on Yektanet.
                     First, you should ask the user relevant questions to gather the necessary information.
+                    If the user provides a website url, you should use the agentic_crawl_url tool to crawl 
+                    the website and gather the necessary information. Provide proper goal for the crawling.
                     Then, you should use the persist_user_request tool to create a CampaignRequest object.
                     """),
                     dedent(f"""
@@ -251,13 +256,14 @@ class KbgkAgent:
         self.agent = Agent(
             name="Knowledge Base Gate Keeper Agent",
             model=OpenAIChat(
-                id=GPT_MODEL_ID,
+                id=MINI_GPT_MODEL_ID,
                 base_url=OPENAI_BASE_URL,
                 api_key=get_openai_api_key(),
             ),
-            tools=[agentic_crawl_url,
+            tools=[Crawl4aiTools(max_length=None),
                    search_yektanet,
-                   add_documents_to_knowledge_base],
+                   add_documents_to_knowledge_base
+                ],
             knowledge=knowledge_base,
             search_knowledge=True,
             instructions=[
@@ -321,7 +327,7 @@ def agentic_crawl_url(url: str, goal: str, agent: Optional[Agent] = None, **kwar
         session_id=agent.session_id,
         user_id=agent.user_id,
         model=OpenAIChat(
-                    id=GPT_MODEL_ID,
+                    id=MINI_GPT_MODEL_ID,
                     base_url=OPENAI_BASE_URL,
                     api_key=get_openai_api_key(),
                 ),

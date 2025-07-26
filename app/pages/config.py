@@ -21,8 +21,8 @@ KBGK_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
 CRAWLER_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
 
 # Vector database configuration
-VECTOR_DB_URI = "app/pages/files/tmp/lancedb"
-VECTOR_DB_TABLE_NAME = "recipes"
+VECTOR_DB_URI = "app/pages/files/tmp/chromadb"
+VECTOR_DB_TABLE_NAME = "documents"
 
 # ============================================================================
 # File Paths Configuration
@@ -41,8 +41,9 @@ OPENAI_BASE_URL = "https://api.metisai.ir/openai/v1"
 OPENAI_API_KEY_ENV = "METIS_API_KEY"
 
 # Model configurations
-GPT_MODEL_ID = "gpt-4.1-mini"
-EMBEDDING_MODEL_ID = "text-embedding-3-small"
+MINI_GPT_MODEL_ID = "gpt-4.1-mini"
+GPT_MODEL_ID = "gpt-4.1"
+EMBEDDING_MODEL_ID = "text-embedding-3-large"
 
 # ============================================================================
 # Agent Configuration

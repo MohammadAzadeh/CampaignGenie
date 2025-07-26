@@ -144,6 +144,14 @@ class CampaignConfig(BaseModel):
         description="Categories to target."
     )
 
+
+class AdDescription(BaseModel):
+    title: str = Field(..., title="Ad Title")
+    landing_url: str = Field(..., title="Landing URL")
+    image_description: str = Field(..., title="Image generation prompt for ad")
+    call_to_action: str = Field(..., title="Call to Action, Less than 13 characters.")
+
+
 class CampaignPlan(BaseModel):
     type: Literal["native", "banner"] = Field(..., title="Campaign Type")
     name: str = Field(..., title="Campaign Name")
@@ -154,8 +162,8 @@ class CampaignPlan(BaseModel):
     bidding_strategy: Literal["cpc"] = Field(..., title="Bidding Strategy")
     bid_toman: int = Field(2000, title="Bid in Toman | Different from maximum cost per lead")
     target_audience_description: str = Field(..., title="Target Audience Description")
-    targetign_config: CampaignConfig 
-    ads_description: list[str] = Field(..., title="Ads Description (Is used for generating ads)", default_factory=list)
+    targetign_config: CampaignConfig
+    ads_description: list[AdDescription]
 
 class CampaignPlanDB(CampaignPlan):
     id: int
