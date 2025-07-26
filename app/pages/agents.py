@@ -162,10 +162,9 @@ class CampaignPlanner:
 
     def __init__(self, session_id: str):
         self.session_id = session_id
-        # storage = SqliteStorage(table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH)
-        # storage.delete_session(session_id)
 
         self.agent = Agent(
+
             name="Campaign Planner Agent",
             model=OpenAIChat(
                 id=GPT_MODEL_ID,
@@ -180,7 +179,7 @@ class CampaignPlanner:
             goal="Create a CampaignPlan to handle the given CampaignRequest in persian",
             instructions=[dedent("""
                           You're given a CampaignRequest to create a digital marketing campaign in Yektanet.                                                   
-                          Related documentsare provided to you.
+                          Related documents are provided to you.
                         
                         * If a similar campaign plan is provided, use it as a reference.
                           """)],
@@ -204,7 +203,6 @@ class CampaignPlanner:
         try:
             reply = self.agent.run(Message(role="user", content=[{"type": "text", "text": f"Update accoring to user feedback {feedbacks}"}]))
             campaign_plan: CampaignPlan = reply.content
-
             update_campaign_plan(self.session_id, campaign_plan)
             return "CampaignPlan updated successfully"
         except Exception as e:
@@ -213,6 +211,12 @@ class CampaignPlanner:
     
     def respond(self) -> str:
         try:
+            # TODO: Remove this after testing
+            print(f"Deleting session {self.session_id}")
+            storage = SqliteStorage(table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH)
+            storage.delete_session(self.session_id)
+
+
             campaign_request = fetch_latest_campaign_request(self.session_id)
 
             if campaign_request is None:
@@ -222,12 +226,11 @@ class CampaignPlanner:
             documents_info = get_documents_for_user_request(campaign_request)
 
             # Combine user request with documents info
-            combined_input = f"CampaignRequest:\n{campaign_request.model_dump_json()}\n"
+            combined_input = f"CampaignRequest:\n{campaign_request.model_dump_json(indent=2)}\n"
             combined_input += f"Related documents:\n{documents_info}"
 
             reply = self.agent.run(combined_input)
             campaign_plan: CampaignPlan = reply.content
-            
 
             insert_campaign_plan(self.session_id, campaign_plan)
 

@@ -58,6 +58,8 @@ def render_get_started_button() -> None:
             st.switch_page("pages/campaign_requests.py")
         if st.button("🚀 شروع ساخت کمپین (چت)", type="primary", use_container_width=True):
             st.switch_page("pages/chat.py")
+        if st.button("📊 مشاهده تاریخچه عامل‌ها", type="secondary", use_container_width=True):
+            st.switch_page("pages/agent_history.py")
 
 
 def main() -> None:
