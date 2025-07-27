@@ -105,6 +105,15 @@ def insert_campaign_plan(campaign_plan: CampaignPlanDB) -> str:
     result = collection.insert_one(campaign_plan.model_dump())
     return str(result.inserted_id)
 
+def update_campaign_plan(campaign_plan: CampaignPlanDB) -> None:
+    """
+    Update a CampaignPlan in the CampaignPlans collection.
+    """
+    assert campaign_plan.id is not None, "CampaignPlan ID is required"
+    collection = get_mongodb_manager().get_collection(get_mongodb_campaign_plans_collection())
+    campaign_plan_dict = campaign_plan.model_dump()
+    campaign_plan_dict.pop("id")
+    collection.update_one({"_id": ObjectId(campaign_plan.id)}, {"$set": campaign_plan_dict})
 
 def fetch_one_campaign_request(query: Dict[str, Any]) -> Dict[str, Any]:
     """

@@ -31,7 +31,7 @@ from pages.config import (
     CRAWLER_AGENT_DB_PATH,
     CRAWLER_AGENT_TABLE_NAME,
     )
-from pages.mongodb_utils import insert_campaign_request, insert_task, fetch_one_campaign_request, insert_campaign_plan
+from pages.mongodb_utils import insert_campaign_request, insert_task, fetch_one_campaign_request, insert_campaign_plan, update_campaign_plan
 
 
 def persist_campaign_request(campaign_request: CampaignRequest, agent: Optional[Agent] = None, **kwargs) -> None:
@@ -211,8 +211,7 @@ class CampaignPlanner:
         try:
             reply = self.agent.run(Message(role="user", content=[{"type": "text", "text": f"Update accoring to user feedback {feedbacks}"}]))
             campaign_plan: CampaignPlan = reply.content
-            update_campaign_plan(self.session_id, campaign_plan)
-            return "CampaignPlan updated successfully"
+            return self.insert_campaign_plan(campaign_plan)
         except Exception as e:
             print(f"Error in CampaignPlanner: {e}")
             return None
@@ -240,20 +239,22 @@ class CampaignPlanner:
 
             reply = self.agent.run(combined_input)
             campaign_plan: CampaignPlan = reply.content
-            campaign_plan_db = CampaignPlanDB(
-                **campaign_plan.model_dump(),
-                task_session_id=self.session_id,
-                campaign_plan_id=str(uuid.uuid4()),
-                campaign_request_id=self.campaign_request_id,
-                created_at=datetime.now()
-            )
-            insert_campaign_plan(campaign_plan_db)
-            return campaign_plan_db
+            return self.insert_campaign_plan(campaign_plan)
         
         except Exception as e:
             print(f"Error in CampaignPlanner: {e}")
             return None
 
+    def insert_campaign_plan(self, campaign_plan: CampaignPlan) -> CampaignPlanDB:
+        campaign_plan_db = CampaignPlanDB(
+            **campaign_plan.model_dump(),
+            task_session_id=self.session_id,
+            campaign_plan_id=str(uuid.uuid4()),
+            campaign_request_id=self.campaign_request_id,
+            created_at=datetime.now()
+        )
+        insert_campaign_plan(campaign_plan_db)
+        return campaign_plan_db
 
 class KbgkAgent:
     """Knowledge Base Gate Keeper Agent for generating and inserting documents into knowledge base."""

@@ -197,7 +197,7 @@ class Task(BaseModel):
         'new', # Task is created and waiting for execution
         'pending_confirm', # Task is waiting for confirmation in panel
         'retry_with_feedback', # Task should be retried with feedback
-        'approved', # Task is approved and waiting for completion
+        'confirmed', # Task is confirmed and waiting for completion
         'completed', # Task is completed
         'failed' # Task is failed
     ]

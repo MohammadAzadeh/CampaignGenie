@@ -17,11 +17,12 @@ class TaskConsumer:
         """Process a generate_campaign_plan task using CampaignPlanner agent."""
         try:
             print(f"Processing campaign plan task for session: {task.session_id}")
-                    
-            # Create CampaignPlanner agent and process the task
             campaign_planner = CampaignPlanner(session_id=task.session_id, campaign_request_id=task.campaign_request_id)
-  
-            campaign_plan = campaign_planner.respond()
+            if task.status == "new":
+                campaign_plan = campaign_planner.respond()
+            elif task.status == "retry_with_feedback":
+                campaign_plan = campaign_planner.resume(task.feedbacks)
+
             if campaign_plan is None:
                 print(f"Error in CampaignPlanner: {campaign_plan}")
                 task.status = "failed"
@@ -35,27 +36,6 @@ class TaskConsumer:
             task.status = "failed"
         update_task(task)
 
-
-    def resume_campaign_plan_task(self, file_path: Path, task: Task) -> None:
-        """Resumes a generate_campaign_plan task using CampaignPlanner agent."""
-        try:
-            print(f"Processing campaign plan task for session: {task.session_id}")
-            
-            # Create CampaignPlanner agent and process the task
-            campaign_planner = CampaignPlanner(session_id=task.session_id)
-            result = campaign_planner.resume(task.feedbacks)
-            
-            if result is None:
-                print(f"Error in CampaignPlanner")
-                # self.update_task_status(file_path, "failed")
-            else:
-                print(f"Successfully generated campaign plan for session: {task.session_id}")
-                self.update_task_status(file_path, "pending")
-            
-        except Exception as e:
-            print(f"Error processing campaign plan task for session {task.session_id}: {e}")
-            # Update task status to failed
-            self.update_task_status(file_path, "failed")
 
     def add_campaign_plan_to_kb(self, task: Task) -> None:
         """Adds the campaign plan to the knowledge base."""

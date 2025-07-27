@@ -5,7 +5,7 @@ from typing import Optional, List, Tuple
 
 from pages.models import GenerateCampaignPlanTask, CampaignPlan
 from pages.yektanet_utils import generate_ad_image
-from pages.mongodb_utils import fetch_tasks, fetch_one_campaign_plan
+from pages.mongodb_utils import fetch_tasks, fetch_one_campaign_plan, update_task
 
 
 def get_pending_confirm_tasks() -> List[GenerateCampaignPlanTask]:
@@ -222,7 +222,8 @@ def main():
     
     with col1:
         if st.button("✅ Confirm Campaign Plan", type="primary", use_container_width=True):
-            # update_task_status(task_file_path, "completed_add_to_kb", feedback)
+            task.status = "confirmed"
+            update_task(task)
             st.success("Campaign plan confirmed successfully!")
             st.rerun()
     
@@ -231,7 +232,11 @@ def main():
             if not feedback.strip():
                 st.error("Please provide feedback when rejecting a campaign plan.")
             else:
-                update_task_status(task_file_path, "retry_with_feedback", feedback)
+                task.status = "retry_with_feedback"
+                if task.feedbacks is None:
+                    task.feedbacks = []
+                task.feedbacks.append(feedback)
+                update_task(task)
                 st.error("Campaign plan rejected.")
                 st.rerun()
     
