@@ -12,7 +12,7 @@ from agno.tools.crawl4ai import Crawl4aiTools
 
 from datetime import datetime
 
-from pages.models import CampaignRequest, CampaignRequestDB, CampaignPlan, Task, GenerateCampaignPlanTask
+from pages.models import CampaignRequest, CampaignRequestDB, CampaignPlan, GenerateCampaignPlanTask, CampaignPlanDB
 from pages.kb import campaign_planner_retriever, get_documents_for_user_request, knowledge_base, search_yektanet, add_documents_to_knowledge_base
 from pages.prompts import YEKTANET_SERVICES
 from pages.config import (
@@ -31,7 +31,7 @@ from pages.config import (
     CRAWLER_AGENT_DB_PATH,
     CRAWLER_AGENT_TABLE_NAME,
     )
-from pages.mongodb_utils import insert_campaign_request, insert_task
+from pages.mongodb_utils import insert_campaign_request, insert_task, fetch_one_campaign_request, insert_campaign_plan
 
 
 def persist_campaign_request(campaign_request: CampaignRequest, agent: Optional[Agent] = None, **kwargs) -> None:
@@ -50,7 +50,7 @@ def persist_campaign_request(campaign_request: CampaignRequest, agent: Optional[
         type="generate_campaign_plan",
         description="Generate a Campaign Plan for given CampaignRequest",
         status="new",
-        session_id=agent.session_id,
+        session_id=str(uuid.uuid4()),
         created_at=datetime.now(),
         campaign_request_id=campaign_request_db.campaign_request_id
     )
@@ -167,8 +167,9 @@ class FirstAgent:
 class CampaignPlanner:
     """Takes the saved CampaignRequest and drafts a CampaignPlan."""
 
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str, campaign_request_id: Optional[str] = None):
         self.session_id = session_id
+        self.campaign_request_id = campaign_request_id
 
         self.agent = Agent(
 
@@ -199,7 +200,7 @@ class CampaignPlanner:
             num_history_responses=5,
             # Adds markdown formatting to the messages
             markdown=True,
-            session_id=session_id,
+            session_id=self.session_id,
             debug_mode=AGENT_DEBUG_MODE,
             response_model=CampaignPlan,
             # retriever=campaign_planner_retriever,
@@ -216,15 +217,16 @@ class CampaignPlanner:
             print(f"Error in CampaignPlanner: {e}")
             return None
     
-    def respond(self) -> str:
+    def respond(self) -> CampaignPlanDB:
         try:
             # TODO: Remove this after testing
             print(f"Deleting session {self.session_id}")
             storage = SqliteStorage(table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH)
             storage.delete_session(self.session_id)
 
-
-            campaign_request = fetch_latest_campaign_request(self.session_id)
+            assert self.campaign_request_id is not None, "CampaignRequest ID is required"
+            campaign_request_db = fetch_one_campaign_request({"campaign_request_id": self.campaign_request_id})
+            campaign_request = CampaignRequest.model_validate(campaign_request_db)
 
             if campaign_request is None:
                 raise RuntimeError("No CampaignRequest stored for this session yet.")
@@ -238,14 +240,16 @@ class CampaignPlanner:
 
             reply = self.agent.run(combined_input)
             campaign_plan: CampaignPlan = reply.content
-
-            insert_campaign_plan(self.session_id, campaign_plan)
-
-            task = Task(type="confirm_campaign_plan", description="Confirm the campaign plan or edit it if needed", 
-                        status="pending", session_id=self.agent.session_id)
-            with open(f"{get_tasks_dir_path()}/{uuid.uuid4()}.json", "w") as f:
-                f.write(task.model_dump_json())
-            return "CampaignPlan generated successfully"
+            campaign_plan_db = CampaignPlanDB(
+                **campaign_plan.model_dump(),
+                task_session_id=self.session_id,
+                campaign_plan_id=str(uuid.uuid4()),
+                campaign_request_id=self.campaign_request_id,
+                created_at=datetime.now()
+            )
+            insert_campaign_plan(campaign_plan_db)
+            return campaign_plan_db
+        
         except Exception as e:
             print(f"Error in CampaignPlanner: {e}")
             return None

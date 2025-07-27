@@ -29,6 +29,7 @@ MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 MONGODB_DATABASE = "campaign_genie"
 MONGODB_CAMPAIGN_REQUESTS_COLLECTION = "CampaignRequests"
 MONGODB_TASKS_COLLECTION = "Tasks"
+MONGODB_CAMPAIGN_PLANS_COLLECTION = "CampaignPlans"
 
 # ============================================================================
 # File Paths Configuration
@@ -114,3 +115,7 @@ def get_mongodb_campaign_requests_collection() -> str:
 def get_mongodb_tasks_collection() -> str:
     """Get the MongoDB Tasks collection name."""
     return MONGODB_TASKS_COLLECTION
+
+def get_mongodb_campaign_plans_collection() -> str:
+    """Get the MongoDB CampaignPlans collection name."""
+    return MONGODB_CAMPAIGN_PLANS_COLLECTION

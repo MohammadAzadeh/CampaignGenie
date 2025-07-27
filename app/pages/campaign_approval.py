@@ -3,51 +3,22 @@ import json
 from pathlib import Path
 from typing import Optional, List, Tuple
 
-from pages.models import Task, CampaignPlan
-from pages.crud import fetch_latest_campaign_plan
-from pages.config import get_tasks_dir_path
+from pages.models import GenerateCampaignPlanTask, CampaignPlan
 from pages.yektanet_utils import generate_ad_image
+from pages.mongodb_utils import fetch_tasks, fetch_one_campaign_plan
 
 
-def read_task_file(file_path: Path) -> Optional[Task]:
-    """Read a task from a JSON file."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            task_data = json.load(f)
-            return Task(**task_data)
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
-        st.error(f"Error reading task file {file_path}: {e}")
-        return None
-
-
-def get_pending_confirm_tasks() -> List[Tuple[Path, Task]]:
+def get_pending_confirm_tasks() -> List[GenerateCampaignPlanTask]:
     """Get all pending confirm_campaign_plan tasks from the task directory."""
-    tasks_dir = Path(get_tasks_dir_path())
-    pending_tasks = []
-    
-    if not tasks_dir.exists():
-        return pending_tasks
-    
-    for file_path in tasks_dir.glob("*.json"):
-        task = read_task_file(file_path)
-        if task and task.type == "confirm_campaign_plan" and task.status == "pending":
-            pending_tasks.append((file_path, task))
-    
-    return pending_tasks
+    pending_tasks = fetch_tasks({"status": "pending_confirm"})
+    tasks = [GenerateCampaignPlanTask.model_validate(task) for task in pending_tasks]
+    return tasks
 
 
-def format_task_display_name(task: Task, file_path: Path, business_name: Optional[str] = None) -> str:
+def format_task_display_name(task: GenerateCampaignPlanTask, name: Optional[str] = None) -> str:
     """Format a task for display in the dropdown."""
-    # Get file creation time for additional context
-    try:
-        creation_time = file_path.stat().st_ctime
-        from datetime import datetime
-        time_str = datetime.fromtimestamp(creation_time).strftime("%m/%d %H:%M")
-    except Exception:
-        time_str = "Unknown"
-    
-    business_part = f" | Business: {business_name}" if business_name else ""
-    return f"[{time_str}] Session: {task.session_id[:8]}...{business_part} | {task.description[:50]}{'...' if len(task.description) > 50 else ''}"
+    time_str = task.created_at.strftime("%m/%d %H:%M")
+    return f"[{time_str}] Session: {task.session_id[:8]}... | Name: {name}"
 
 
 def update_task_status(file_path: Path, status: str, feedback: str = "") -> None:
@@ -180,12 +151,13 @@ def main():
         # Prepare dropdown options with business name
         task_options = []
         task_mapping = {}
-        for file_path, task in pending_tasks:
-            plan = fetch_latest_campaign_plan(task.session_id)
-            business_name = plan.name if plan else None
-            display_name = format_task_display_name(task, file_path, business_name)
+        for task in pending_tasks:
+            plan_db = fetch_one_campaign_plan({"campaign_plan_id": task.campaign_plan_id})
+            plan = CampaignPlan.model_validate(plan_db)
+            name = plan.name if plan else None
+            display_name = format_task_display_name(task, name)
             task_options.append(display_name)
-            task_mapping[display_name] = (file_path, task, plan)
+            task_mapping[display_name] = (task, plan)
         if task_options:
             default_index = 0
             selected_task_display = st.selectbox(
@@ -208,7 +180,7 @@ def main():
         return
     
     # Get the selected task, task file, and plan
-    task_file_path, task, campaign_plan = task_mapping[selected_task_display]
+    task, campaign_plan = task_mapping[selected_task_display]
     
     # Task details section
     st.markdown("---")
@@ -250,7 +222,7 @@ def main():
     
     with col1:
         if st.button("✅ Confirm Campaign Plan", type="primary", use_container_width=True):
-            update_task_status(task_file_path, "completed_add_to_kb", feedback)
+            # update_task_status(task_file_path, "completed_add_to_kb", feedback)
             st.success("Campaign plan confirmed successfully!")
             st.rerun()
     

@@ -128,6 +128,7 @@ class CampaignRequest(BaseModel):
 
 
 class CampaignRequestDB(CampaignRequest):
+    id: Optional[str] = None # This is the MongoDB ID
     campaign_request_id: str
     advertiser_id: str
     status: Literal["new", "in_progress", "completed", "failed"]
@@ -178,23 +179,27 @@ class CampaignPlan(BaseModel):
 
 
 class CampaignPlanDB(CampaignPlan):
-    id: int
-    session_id: str
+    id: Optional[str] = None # This is the MongoDB ID
+    campaign_plan_id: str
+    task_session_id: str
+    campaign_request_id: str
     created_at: datetime = Field(
         default_factory=datetime.utcnow, title="Created At"
     )
 
 
 class Task(BaseModel):
+    id: Optional[str] = None # This is the MongoDB ID
     type: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     description: str
     status: Literal[
-        'new',
-        'pending_confirm',
-        'retry_with_feedback',
-        'completed',
-        'failed'
+        'new', # Task is created and waiting for execution
+        'pending_confirm', # Task is waiting for confirmation in panel
+        'retry_with_feedback', # Task should be retried with feedback
+        'approved', # Task is approved and waiting for completion
+        'completed', # Task is completed
+        'failed' # Task is failed
     ]
     session_id: str
 
