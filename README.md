@@ -52,6 +52,7 @@ Docker layer caching.
 | Container       | Port | Purpose                 |
 |-----------------|------|-------------------------|
 | `campaigngenie` | 8501 | Streamlit UI (`app.ui`) |
+| `mongodb`       | 27017| MongoDB Database        |
 
 ---
 

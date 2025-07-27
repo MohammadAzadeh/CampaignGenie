@@ -12,14 +12,8 @@ from agno.tools.crawl4ai import Crawl4aiTools
 
 from datetime import datetime
 
-from pages.models import CampaignRequest, CampaignRequestDB, CampaignPlan, Task
+from pages.models import CampaignRequest, CampaignRequestDB, CampaignPlan, Task, GenerateCampaignPlanTask
 from pages.kb import campaign_planner_retriever, get_documents_for_user_request, knowledge_base, search_yektanet, add_documents_to_knowledge_base
-from pages.crud import (
-    insert_campaign_request,
-    fetch_latest_campaign_request,
-    insert_campaign_plan,
-    update_campaign_plan
-)
 from pages.prompts import YEKTANET_SERVICES
 from pages.config import (
     OPENAI_BASE_URL,
@@ -37,22 +31,30 @@ from pages.config import (
     CRAWLER_AGENT_DB_PATH,
     CRAWLER_AGENT_TABLE_NAME,
     )
+from pages.mongodb_utils import insert_campaign_request, insert_task
 
 
-def persist_user_request(user_request: CampaignRequest, agent: Optional[Agent] = None, **kwargs) -> None:
-    """Store the request for this session via the CRUD helpers."""
-    user_request = CampaignRequestDB(
-        **user_request.model_dump(),
+def persist_campaign_request(campaign_request: CampaignRequest, agent: Optional[Agent] = None, **kwargs) -> None:
+    """Store the request for this session via MongoDB."""
+    campaign_request_db = CampaignRequestDB(
+        **campaign_request.model_dump(),
+        campaign_request_id=str(uuid.uuid4()),
         session_id=agent.session_id,
         advertiser_id=agent.user_id,
         created_at=datetime.now(),
         status="new"
-        )
-    insert_campaign_request(user_request)
-    task = Task(type="generate_campaign_plan", description="Generate a Campaign Plan for given CampaignRequest", 
-            status="pending", session_id=agent.session_id)
-    with open(f"{get_tasks_dir_path()}/{uuid.uuid4()}.json", "w") as f:
-        f.write(task.model_dump_json())
+    )
+    
+    insert_campaign_request(campaign_request_db)
+    task = GenerateCampaignPlanTask(
+        type="generate_campaign_plan",
+        description="Generate a Campaign Plan for given CampaignRequest",
+        status="new",
+        session_id=agent.session_id,
+        created_at=datetime.now(),
+        campaign_request_id=campaign_request_db.campaign_request_id
+    )
+    insert_task(task)
 
 def ask_from_knowledge_base(
     question: str
@@ -122,7 +124,7 @@ class FirstAgent:
                 api_key=get_openai_api_key(),
             ),
             tools=[
-                persist_user_request,
+                persist_campaign_request,
                 agentic_crawl_url],
             instructions=[
                 dedent(

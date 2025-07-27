@@ -95,15 +95,21 @@ class Landing(BaseModel):
 class Business(BaseModel):
     name: str = Field(..., title="name of the business")
     type: str = Field(..., title="type of business")
-    description: Optional[str] = Field(None, description="Brief description of the business")
+    description: Optional[str] = Field(
+        None, description="Brief description of the business"
+    )
 
 
 class MarketingExperience(BaseModel):
-    is_traditional: bool = Field(..., description="Is traditional marketing experience")
+    is_traditional: bool = Field(
+        ..., description="Is traditional marketing experience"
+    )
     is_digital: bool = Field(..., description="Is digital marketing experience")
     description: str = Field(..., description="Description of marketing experience")
     spent_budget: str = Field(..., description="Amount of budget spent on marketing")
-    feedback: str = Field(..., description="Feedback or results from marketing experience")
+    feedback: str = Field(
+        ..., description="Feedback or results from marketing experience"
+    )
 
 
 class CampaignRequest(BaseModel):
@@ -120,21 +126,20 @@ class CampaignRequest(BaseModel):
         default_factory=list,
     )
 
-    class Config:
-        validate_assignment = True
-        frozen = True
 
 class CampaignRequestDB(CampaignRequest):
-    advertiser_id: int = Field(..., title="ID of the advertiser in Yektanet")
-    status: Literal["new", "in_progress", "completed", "failed"] = Field(default="new", title="Status")
-    created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
-    session_id: str = Field(..., title="Session ID")
-
+    campaign_request_id: str
+    advertiser_id: str
+    status: Literal["new", "in_progress", "completed", "failed"]
+    created_at: datetime
+    session_id: str
+    
 
 class CampaignConfig(BaseModel):
-    keywords: list[str] = Field(..., description="""Keywords to target, 
-                                it should be keywords that are related to the business 
-                                or intersting to the target audience""")
+    keywords: list[str] = Field(
+        ..., 
+        description="Keywords to target, it should be keywords that are related to the business or intersting to the target audience"
+    )
     user_segments: list[UserSegmentType] = Field(
         ..., 
         description="User segments to target."
@@ -149,31 +154,54 @@ class AdDescription(BaseModel):
     title: str = Field(..., title="Ad Title")
     landing_url: str = Field(..., title="Landing URL")
     image_description: str = Field(..., title="Image generation prompt for ad")
-    call_to_action: str = Field(..., title="Call to Action, Less than 13 characters.")
+    call_to_action: str = Field(
+        ..., title="Call to Action, Less than 13 characters."
+    )
 
 
 class CampaignPlan(BaseModel):
     type: Literal["native", "banner"] = Field(..., title="Campaign Type")
     name: str = Field(..., title="Campaign Name")
     business_description: str = Field(..., title="Business Description")
-    goal: str = Field(..., description="Goal of the campaign | What satisfies the business owner?")
+    goal: str = Field(
+        ..., description="Goal of the campaign | What satisfies the business owner?"
+    )
     description: str = Field(..., title="Campaign Description")
     budget: int = Field(..., title="Daily Campaign Budget")
     bidding_strategy: Literal["cpc"] = Field(..., title="Bidding Strategy")
-    bid_toman: int = Field(2000, title="Bid in Toman | Different from maximum cost per lead")
+    bid_toman: int = Field(
+        2000, title="Bid in Toman | Different from maximum cost per lead"
+    )
     target_audience_description: str = Field(..., title="Target Audience Description")
     targetign_config: CampaignConfig
     ads_description: list[AdDescription]
 
+
 class CampaignPlanDB(CampaignPlan):
     id: int
     session_id: str
-    created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow, title="Created At"
+    )
+
 
 class Task(BaseModel):
-    type: Literal["generate_campaign_plan", 'confirm_campaign_plan', "generate_campaign_plan"]
+    type: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
     description: str
-    status: Literal['pending', 'retry_with_feedback', 'in_progress', 'completed', "completed_add_to_kb", 'failed']
+    status: Literal[
+        'new',
+        'pending_confirm',
+        'retry_with_feedback',
+        'completed',
+        'failed'
+    ]
     session_id: str
+
+
+class GenerateCampaignPlanTask(Task):
+    type: Literal["generate_campaign_plan"]
+    campaign_request_id: str
+    campaign_plan_id: Optional[str] = None
     feedbacks: list[str] = Field(default_factory=list)
 

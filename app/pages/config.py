@@ -24,6 +24,12 @@ CRAWLER_AGENT_DB_PATH = "app/pages/files/campaign_genie.db"
 VECTOR_DB_URI = "app/pages/files/tmp/chromadb"
 VECTOR_DB_TABLE_NAME = "documents"
 
+# MongoDB configuration
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_DATABASE = "campaign_genie"
+MONGODB_CAMPAIGN_REQUESTS_COLLECTION = "CampaignRequests"
+MONGODB_TASKS_COLLECTION = "Tasks"
+
 # ============================================================================
 # File Paths Configuration
 # ============================================================================
@@ -92,3 +98,19 @@ def get_campaign_planner_db_path() -> str:
 def get_kbgk_agent_db_path() -> str:
     """Get the KBGK agent database path."""
     return KBGK_AGENT_DB_PATH
+
+def get_mongodb_uri() -> str:
+    """Get the MongoDB URI."""
+    return MONGODB_URI
+
+def get_mongodb_database() -> str:
+    """Get the MongoDB database name."""
+    return MONGODB_DATABASE
+
+def get_mongodb_campaign_requests_collection() -> str:
+    """Get the MongoDB CampaignRequests collection name."""
+    return MONGODB_CAMPAIGN_REQUESTS_COLLECTION
+
+def get_mongodb_tasks_collection() -> str:
+    """Get the MongoDB Tasks collection name."""
+    return MONGODB_TASKS_COLLECTION
