@@ -133,10 +133,6 @@ def create_campaign(
     page_keywords: list[str],
     page_categories: list[str],
     user_segments: list[str],
-    ad_title: str,
-    ad_image_description: str,
-    ad_url: str,
-    ad_cta_title: str,
 ):
     page_categories = [category for category in page_categories if category in CATEGORY_MAP]
     user_segments = [segment for segment in user_segments if segment in SEGMENT_MAP]
@@ -229,35 +225,11 @@ def create_campaign(
         return "Failed to create campaign."
     campaign_id = json.loads(campaign_creation_request.text)["id"]
     print(f"{campaign_id}: Created campaign")
-    refresh_token()
-    print(f"{campaign_id}: Generating image")
-    image_creation_request = requests.post(
-        url="https://assistant.yektanet.com/api/v2/facilitator/assets/images/",
-        headers=HEADERS,
-        json={
-            "raw_prompt": ad_image_description,
-            "campaign_id": None,
-            "images_count": 1,
-            "images_ratio": "3:2",
-        },
-        timeout=60,
-    )
-    if image_creation_request.status_code != 201:
-        print(image_creation_request.text, image_creation_request.status_code)
-        return "Failed to generate ad image."
-    image_url = json.loads(image_creation_request.text)['images'][0]['image']
-    print(f"{campaign_id}: Generated image {image_url}")
-    print(f"{campaign_id}: Downloading Image")
-    resp = requests.get(image_url, timeout=20)
-    resp.raise_for_status()
-    img = Image.open(BytesIO(resp.content)).convert("RGB")
-    max_side = 600
-    img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
-    image_name = ''.join(random.choices('123456789', k=7))
-    img.save(f"{image_name}.png", format="PNG", optimize=True)
-    print(f"{campaign_id}: Saved image {image_name}")
+    return f"Campign with ID {campaign_id} created successfully."
 
-    with open(f"{image_name}.png", "rb") as f:
+
+def create_ad(campaign_id: int, ad_title: str, image_path: str, ad_url: str, ad_cta_title: str):
+    with open(image_path, "rb") as f:
         refresh_token()
         print(f"{campaign_id}: Creating ad")
         ad_creation_request = requests.post(
@@ -281,8 +253,7 @@ def create_campaign(
             return "Failed to create ad."
         ad_id = json.loads(ad_creation_request.text)['id']
         print(f"{campaign_id}: Created ad {ad_id}")
-    os.remove(f"{image_name}.png")
-    return f"Campign with ID {campaign_id} created successfully."
+    return f"Ad with ID {ad_id} created successfully."
 
 
 def generate_ad_image(ad_image_description: str):

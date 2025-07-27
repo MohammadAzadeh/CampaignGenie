@@ -54,11 +54,11 @@ def render_get_started_button() -> None:
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🚀 شروع ساخت کمپین (فرم)", type="primary", use_container_width=True):
+        if st.button("🚀 Campaign Requests", type="primary", use_container_width=True):
             st.switch_page("pages/campaign_requests.py")
-        if st.button("🚀 شروع ساخت کمپین (چت)", type="primary", use_container_width=True):
+        if st.button("🚀 Chat with Agent", type="primary", use_container_width=True):
             st.switch_page("pages/chat.py")
-        if st.button("📊 مشاهده تاریخچه عامل‌ها", type="secondary", use_container_width=True):
+        if st.button("📊 Agent History", type="secondary", use_container_width=True):
             st.switch_page("pages/agent_history.py")
 
 
