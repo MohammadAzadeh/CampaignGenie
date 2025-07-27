@@ -6,6 +6,7 @@ from typing import Optional, List, Tuple
 from pages.models import Task, CampaignPlan
 from pages.crud import fetch_latest_campaign_plan
 from pages.config import get_tasks_dir_path
+from pages.yektanet_utils import generate_ad_image
 
 
 def read_task_file(file_path: Path) -> Optional[Task]:
@@ -42,7 +43,7 @@ def format_task_display_name(task: Task, file_path: Path, business_name: Optiona
         creation_time = file_path.stat().st_ctime
         from datetime import datetime
         time_str = datetime.fromtimestamp(creation_time).strftime("%m/%d %H:%M")
-    except:
+    except Exception:
         time_str = "Unknown"
     
     business_part = f" | Business: {business_name}" if business_name else ""
@@ -71,6 +72,10 @@ def update_task_status(file_path: Path, status: str, feedback: str = "") -> None
 def display_campaign_plan(plan: CampaignPlan) -> None:
     """Display a campaign plan in a formatted way."""
     st.header("📋 Campaign Plan Details")
+    
+    # Initialize session state for generated images if not exists
+    if 'generated_images' not in st.session_state:
+        st.session_state.generated_images = {}
     
     # Basic Information
     col1, col2 = st.columns(2)
@@ -118,7 +123,45 @@ def display_campaign_plan(plan: CampaignPlan) -> None:
         st.subheader("📢 Ads Description")
         for i, ad_desc in enumerate(plan.ads_description, 1):
             st.write(f"**Ad {i}:**")
-            st.info(ad_desc)
+            
+            # Create columns for better layout
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Title:**")
+                st.info(ad_desc.title)
+                st.write("**Landing URL:**")
+                st.info(ad_desc.landing_url)
+            
+            with col2:
+                st.write("**Call to Action:**")
+                st.info(ad_desc.call_to_action)
+                st.write("**Image Description:**")
+                st.info(ad_desc.image_description)
+            
+            # Generate Image button and display
+            st.write("**Generate Image:**")
+            image_key = f"ad_{i}_image"
+            
+            # Check if image already generated
+            if image_key in st.session_state.generated_images:
+                st.success("✅ Image generated successfully!")
+                st.image(st.session_state.generated_images[image_key], caption=f"Generated image for Ad {i}", use_container_width=True)
+            else:
+                if st.button(f"Generate Image", key=f"generate_btn_{i}"):
+                    with st.spinner("Generating image..."):
+                        try:
+                            image_path = generate_ad_image(ad_desc.image_description)
+                            if image_path and image_path != "Failed to generate ad image.":
+                                st.session_state.generated_images[image_key] = image_path
+                                st.success("✅ Image generated successfully!")
+                                st.image(image_path, caption=f"Generated image for Ad {i}", use_container_width=True, width=300)
+                            else:
+                                st.error("❌ Failed to generate image. Please try again.")
+                        except Exception as e:
+                            st.error(f"❌ Error generating image: {str(e)}")
+            
+            st.markdown("---")
 
 
 def main():
