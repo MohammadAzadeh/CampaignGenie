@@ -6,7 +6,7 @@ from textwrap import dedent
 from pages.models import (
     GenerateCampaignPlanTask,
     CreateYektanetCampaignTask,
-    CampaignPlan,
+    CampaignPlanDB,
 )
 from pages.agents import CampaignPlanner
 from pages.kb import add_document_to_knowledge_base
@@ -15,8 +15,9 @@ from pages.mongodb_utils import (
     update_task,
     insert_task,
     fetch_one_campaign_plan,
+    update_campaign_plan,
 )
-from pages.yektanet_utils import create_native_campaign
+from pages.yektanet_utils import create_native_campaign, generate_ad_image, create_ad
 
 
 class TaskConsumer:
@@ -77,33 +78,74 @@ class TaskConsumer:
             campaign_plan = fetch_one_campaign_plan(
                 {"campaign_plan_id": task.campaign_plan_id}
             )
-            campaign_plan = CampaignPlan.model_validate(campaign_plan)
-            if campaign_plan:
-                created_campaign_id = create_native_campaign(
-                    name=campaign_plan.name,
-                    daily_budget=campaign_plan.budget,
-                    cost_per_click=campaign_plan.bid_toman,
-                    page_keywords=campaign_plan.targeting_config.keywords,
-                    page_categories=campaign_plan.targeting_config.categories,
-                    user_segments=campaign_plan.targeting_config.user_segments,
-                )
-                if created_campaign_id is None:
-                    print(f"Failed to create campaign for task: {task.campaign_plan_id}")
-                    task.status = "failed"
+            campaign_plan = CampaignPlanDB.model_validate(campaign_plan)
+            if task.status == "new":
+                if campaign_plan and campaign_plan.type == "native":
+                    created_campaign_id = create_native_campaign(
+                        name=campaign_plan.name,
+                        daily_budget=campaign_plan.budget,
+                        cost_per_click=campaign_plan.bid_toman,
+                        page_keywords=campaign_plan.targeting_config.keywords,
+                        page_categories=campaign_plan.targeting_config.categories,
+                        user_segments=campaign_plan.targeting_config.user_segments,
+                    )
+                    if created_campaign_id is None:
+                        print(
+                            f"Failed to create campaign for task: {task.campaign_plan_id}"
+                        )
+                        task.status = "failed"
+                    else:
+                        print(f"Created campaign with ID: {created_campaign_id}")
+                        task.status = "created_campaign"
+                        task.created_campaign_id = str(created_campaign_id)
                 else:
-                    print(f"Created campaign with ID: {created_campaign_id}")
+                    print(f"No campaign plan found for task: {task.campaign_plan_id}")
+                    task.status = "failed"
+            elif task.status == "create_ads":
+                print(f"Creating ads for campaign: {task.created_campaign_id}")
+                for ad in campaign_plan.ads_description:
+
+                    if ad.image.source == "generate" and ad.image.image_url is None:
+                        ad.image.image_url = generate_ad_image(ad.image.prompt)
+                    if ad.image.image_url is None:
+                        print(f"Failed to generate image for ad: {ad.title}")
+                        task.status = "failed"
+                        break
+
+                    created_ad_id = create_ad(
+                        task.created_campaign_id,
+                        ad.title,
+                        ad.image.image_url,
+                        ad.landing_url,
+                        ad.call_to_action,
+                    )
+                    if created_ad_id is None:
+                        print(f"Failed to create ad for task: {task.campaign_plan_id}")
+                        task.status = "failed"
+                        break
+                    else:
+                        task.created_ads.append(str(created_ad_id))
+                if task.created_ads is not None and len(task.created_ads) >= len(campaign_plan.ads_description):
                     task.status = "completed"
-                    task.created_campaign_id = str(created_campaign_id)
+                else:
+                    task.status = "create_ads"
+                    task.retry_count += 1
+                if task.retry_count > 5:
+                    task.status = "failed"
             else:
                 print(f"No campaign plan found for task: {task.campaign_plan_id}")
                 task.status = "failed"
-            update_task(task)
         except Exception as e:
+            if isinstance(task, dict):
+                session_id = task["session_id"]
+            else:
+                session_id = task.session_id
             print(
-                f"Error processing create yektanet campaign task for session {task['session_id']}: {e}"
+                f"Error processing create yektanet campaign task for session {session_id}: {e}"
             )
             task.status = "failed"
-            update_task(task)
+        update_task(task)
+        update_campaign_plan(campaign_plan)
 
     def add_campaign_plan_to_kb(self, task: GenerateCampaignPlanTask) -> None:
         """Adds the campaign plan to the knowledge base."""
@@ -111,7 +153,7 @@ class TaskConsumer:
             campaign_plan = fetch_one_campaign_plan(
                 {"campaign_plan_id": task.campaign_plan_id}
             )
-            campaign_plan = CampaignPlan.model_validate(campaign_plan)
+            campaign_plan = CampaignPlanDB.model_validate(campaign_plan)
             if campaign_plan:
                 name = f"کمپین پلن {campaign_plan.name} | {campaign_plan.goal}"
                 content = dedent(f"""
@@ -139,9 +181,9 @@ class TaskConsumer:
 
         while True:
             try:
-                # get a task with status "new", "retry_with_feedback", "confirmed"
+                # TODO: get a task with status not one of "completed", "failed", pending_confirm
                 task = fetch_one_task(
-                    {"status": {"$in": ["new", "retry_with_feedback", "confirmed"]}}
+                    {"status": {"$nin": ["completed", "failed", "pending_confirm"]}}
                 )
 
                 if task is not None:

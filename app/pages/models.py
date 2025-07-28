@@ -145,11 +145,17 @@ class CampaignConfig(BaseModel):
     categories: list[CategoryType] = Field(..., description="Categories to target.")
 
 
+class Image(BaseModel):
+    source: Literal["generate", "user_asset"]
+    image_url: Optional[str] = Field(None, description="Image URL, if source is user_asset")
+    prompt: Optional[str] = Field(None, description="Image generation prompt for ad, if source is generate")
+
+
 class AdDescription(BaseModel):
-    title: str = Field(..., title="Ad Title")
-    landing_url: str = Field(..., title="Landing URL")
-    image_description: str = Field(..., title="Image generation prompt for ad")
-    call_to_action: str = Field(..., title="Call to Action, Less than 13 characters.")
+    title: str
+    landing_url: str
+    image: Image
+    call_to_action: str = Field(..., description="Call to Action, Less than 13 characters.")
 
 
 class CampaignPlan(BaseModel):
@@ -183,14 +189,6 @@ class Task(BaseModel):
     type: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     description: str
-    status: Literal[
-        "new",  # Task is created and waiting for execution
-        "pending_confirm",  # Task is waiting for confirmation in panel
-        "retry_with_feedback",  # Task should be retried with feedback
-        "confirmed",  # Task is confirmed and waiting for completion
-        "completed",  # Task is completed
-        "failed",  # Task is failed
-    ]
     session_id: str
 
 
@@ -199,6 +197,14 @@ class GenerateCampaignPlanTask(Task):
     campaign_request_id: str
     campaign_plan_id: Optional[str] = None
     feedbacks: list[str] = Field(default_factory=list)
+    status: Literal[
+        "new",  # Task is created and waiting for execution
+        "pending_confirm",  # Task is waiting for confirmation in panel
+        "retry_with_feedback",  # Task should be retried with feedback
+        "confirmed",  # Task is confirmed and waiting for completion
+        "completed",  # Task is completed
+        "failed",  # Task is failed
+    ]
 
 
 class CreateYektanetCampaignTask(Task):
@@ -206,4 +212,11 @@ class CreateYektanetCampaignTask(Task):
     campaign_plan_id: str
     campaign_request_id: str
     created_campaign_id: Optional[str] = None
-    created_ads: Optional[list[str]] = None
+    created_ads: list[str] = []
+    status: Literal[
+        "new",  # Task is created and waiting for execution
+        "create_ads",  # campaign created successfully, waiting for ads creation
+        "completed",  # Task is completed
+        "failed",  # Task is failed
+    ]
+    retry_count: int = 0

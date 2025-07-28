@@ -242,39 +242,50 @@ def create_native_campaign(
     return campaign_id
 
 
+def read_and_resize_image(image_path: str) -> BytesIO:
+    img = Image.open(image_path)
+    max_side = 600
+    img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+
+    image_file = BytesIO()
+    img.save(image_file, format="PNG", optimize=True)
+    image_file.seek(0)
+    return image_file
+
+
 def create_ad(
     campaign_id: int, ad_title: str, image_path: str, ad_url: str, ad_cta_title: str
 ):
-    with open(image_path, "rb") as f:
-        refresh_token()
-        print(f"{campaign_id}: Creating ad")
-        ad_creation_request = requests.post(
-            url="https://ad-management.yektanet.com/v1/ad/",
-            headers=HEADERS,
-            data={
-                "campaign": campaign_id,
-                "title": ad_title,
-                "item_url": ad_url,
-                "description": "",
-                "user_apply": "on",
-                "cta_color": "#9BD2FF",
-                "cta_title": ad_cta_title[:13],
-                "image_source": "manual",
-            },
-            files={"image": ("image.png", f, "image/png")},
-            timeout=30,
-        )
-        if ad_creation_request.status_code != 201:
-            print(ad_creation_request.text, ad_creation_request.status_code)
-            return "Failed to create ad."
-        ad_id = json.loads(ad_creation_request.text)["id"]
-        print(f"{campaign_id}: Created ad {ad_id}")
-    return f"Ad with ID {ad_id} created successfully."
+    image_file = read_and_resize_image(image_path)
+    refresh_token()
+    print(f"{campaign_id}: Creating ad")
+    ad_creation_request = requests.post(
+        url="https://ad-management.yektanet.com/v1/ad/",
+        headers=HEADERS,
+        data={
+            "campaign": campaign_id,
+            "title": ad_title,
+            "item_url": ad_url,
+            "description": "",
+            "user_apply": "off", # This indicates that the ad should be active or not
+            "cta_color": "#9BD2FF",
+            "cta_title": ad_cta_title[:13],
+            "image_source": "manual",
+        },
+        files={"image": ("image.png", image_file, "image/png")},
+        timeout=30,
+    )
+    if ad_creation_request.status_code != 201:
+        print(ad_creation_request.text, ad_creation_request.status_code)
+        return None
+    ad_id = json.loads(ad_creation_request.text)["id"]
+    print(f"{campaign_id}: Created ad {ad_id}")
+    return ad_id
 
 
 def generate_ad_image(ad_image_description: str):
     refresh_token()
-    print(f"Generating image")
+    print("Generating image")
     image_creation_request = requests.post(
         url="https://assistant.yektanet.com/api/v2/facilitator/assets/images/",
         headers=HEADERS,
@@ -288,7 +299,7 @@ def generate_ad_image(ad_image_description: str):
     )
     if image_creation_request.status_code != 201:
         print(image_creation_request.text, image_creation_request.status_code)
-        return "Failed to generate ad image."
+        return None
     image_url = json.loads(image_creation_request.text)["images"][0]["image"]
     print(f"Generated image {image_url}")
     print(f"Downloading Image")
