@@ -6,6 +6,9 @@ Centralized configuration for database paths, file paths, API settings, and othe
 import os
 import pathlib
 from typing import Optional
+import dotenv
+
+dotenv.load_dotenv()
 
 # ============================================================================
 # Database Configuration
