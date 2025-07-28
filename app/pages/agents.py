@@ -24,7 +24,7 @@ from pages.kb import (
     get_documents_for_user_request,
     knowledge_base,
     search_yektanet,
-    add_documents_to_knowledge_base,
+    add_document_to_knowledge_base,
 )
 from pages.prompts import YEKTANET_SERVICES
 from pages.config import (
@@ -313,7 +313,7 @@ class KbgkAgent:
             tools=[
                 Crawl4aiTools(max_length=None),
                 search_yektanet,
-                add_documents_to_knowledge_base,
+                add_document_to_knowledge_base,
             ],
             knowledge=knowledge_base,
             search_knowledge=True,
@@ -338,7 +338,7 @@ class KbgkAgent:
                         Use the `search_yektanet` tool to search the Yektanet's website for more articles and information.
                         You can search yektanet without asking for user's permision.
                     8. Use `agentic_crawl_url` tool to crawl URLs returned by `search_yektanet` tool.
-                    9. Finally, use `add_documents_to_knowledge_base` to add the document to knowledge-base.
+                    9. Finally, use `add_document_to_knowledge_base` to add the document to knowledge-base.
                     
                     You should be helpful, thorough, and ensure that all documents meet quality standards
                     before they are inserted into the knowledge base.

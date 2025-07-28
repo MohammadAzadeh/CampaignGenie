@@ -1,12 +1,12 @@
 import time
 from datetime import datetime
 
-from agno.document import Document
+from textwrap import dedent
 
-from pages.models import Task, GenerateCampaignPlanTask, CreateYektanetCampaignTask
+from pages.models import GenerateCampaignPlanTask, CreateYektanetCampaignTask, CampaignPlan
 from pages.agents import CampaignPlanner
-from pages.kb import knowledge_base
-from pages.mongodb_utils import fetch_one_task, update_task, insert_task
+from pages.kb import add_document_to_knowledge_base
+from pages.mongodb_utils import fetch_one_task, update_task, insert_task, fetch_one_campaign_plan
 
 
 class TaskConsumer:
@@ -15,11 +15,11 @@ class TaskConsumer:
     def process_campaign_plan_task(self, task: dict) -> None:
         """Process a generate_campaign_plan task using CampaignPlanner agent."""
         try:
-            print(f"Processing campaign plan task for session: {task.session_id}")
             task = GenerateCampaignPlanTask.model_validate(task)
+            print(f"Processing campaign plan task for session: {task.session_id}")
 
             if task.status == "confirmed":
-                # TODO: Create a new task to create campaign and ads in yektanet
+                print(f"Creating Yektanet campaign task for session: {task.session_id}")
                 create_yektanet_task = CreateYektanetCampaignTask(
                     type="create_yektanet_campaign",
                     description="Create campaign and ads in Yektanet for confirmed campaign plan.",
@@ -30,9 +30,9 @@ class TaskConsumer:
                     campaign_request_id=task.campaign_request_id,
                 )
                 insert_task(create_yektanet_task)
-                # TODO: Add campaign plan to knowledge base
+                self.add_campaign_plan_to_kb(task)
                 # TODO: Update campaign_request status
-                # TODO: Update task status
+                task.status = "completed"
             else:
                 campaign_planner = CampaignPlanner(
                     session_id=task.session_id,
@@ -61,26 +61,27 @@ class TaskConsumer:
         update_task(task)
         # TODO: Update campaign_request status
 
-    def add_campaign_plan_to_kb(self, task: Task) -> None:
+    def add_campaign_plan_to_kb(self, task: GenerateCampaignPlanTask) -> None:
         """Adds the campaign plan to the knowledge base."""
         try:
-            campaign_plan = fetch_latest_campaign_plan(task.session_id)
+            campaign_plan = fetch_one_campaign_plan({"campaign_plan_id": task.campaign_plan_id})
+            campaign_plan = CampaignPlan.model_validate(campaign_plan)
             if campaign_plan:
                 name = f"کمپین پلن {campaign_plan.name} | {campaign_plan.goal}"
-                content = f"""
+                content = dedent(f"""
                     کمپین پلن: {campaign_plan.name}
                     هدف: {campaign_plan.goal}
                     مخاطبین: {campaign_plan.target_audience_description}
-                """
+                """)
                 metadata = {
                     "contenttype": "campaign_plan",
-                    "url": None,
-                    "full_text": campaign_plan.model_dump_json(),
+                    "full_text": campaign_plan.model_dump_json(indent=2),
+                    "name": name,
                 }
-                id = len(knowledge_base.documents) + 1
-                doc = Document(id=id, name=name, content=content, meta_data=metadata)
-                print(doc)
-                knowledge_base.add_document_to_knowledge_base(doc)
+                print(name, content, metadata)
+                add_document_to_knowledge_base(name, content, metadata)
+            else:
+                print(f"No campaign plan found for task: {task.campaign_plan_id}")
         except Exception as e:
             print(f"Error adding campaign plan to knowledge base: {e}")
 
@@ -92,9 +93,9 @@ class TaskConsumer:
 
         while True:
             try:
-                # get a task with status "new", "retry_with_feedback", "approved"
+                # get a task with status "new", "retry_with_feedback", "confirmed"
                 task = fetch_one_task(
-                    {"status": {"$in": ["new", "retry_with_feedback", "approved"]}}
+                    {"status": {"$in": ["new", "retry_with_feedback", "confirmed"]}}
                 )
 
                 if task is not None:
@@ -102,7 +103,7 @@ class TaskConsumer:
                     if task["type"] == "generate_campaign_plan":
                         self.process_campaign_plan_task(task)
                     else:
-                        print(f"Unknown task type: {task.type}")
+                        print(f"Unknown task type: {task.get('type', 'NO_TYPE')}")
                         # TODO: Mark unknown task types as failed
                 else:
                     print("No pending tasks found")

@@ -55,7 +55,7 @@ knowledge_base = DocumentKnowledgeBase(
 )
 
 
-def add_documents_to_knowledge_base(name: str, content: str, meta_data: dict):
+def add_document_to_knowledge_base(name: str, content: str, meta_data: dict):
     """
     Add a document to the knowledge base.
     Args:
@@ -273,5 +273,3 @@ def search_yektanet(query: str) -> List[Dict[str, str]]:
 # Uncomment to load documents again.
 # knowledge_base.load(recreate=False)
 
-
-# print(knowledge_base.search(query="مدیریت کاربران", num_documents=1)[0].meta_data["name"])

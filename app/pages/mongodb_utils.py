@@ -189,28 +189,6 @@ def fetch_one_campaign_plan(query: Dict[str, Any]) -> Dict[str, Any]:
     return document
 
 
-def fetch_latest_campaign_plan(session_id: str) -> Optional[CampaignPlanDB]:
-    """
-    Fetch the latest campaign plan for a given session.
-    """
-    collection = get_mongodb_manager().get_collection(
-        get_mongodb_campaign_plans_collection()
-    )
-    document = collection.find_one(
-        {"task_session_id": session_id},
-        sort=[("created_at", -1)],  # Sort by created_at descending to get latest
-    )
-    if document is None:
-        return None
-
-    # Convert ObjectId to string for JSON serialization
-    if "_id" in document:
-        document["id"] = str(document["_id"])
-        del document["_id"]
-
-    return CampaignPlanDB.model_validate(document)
-
-
 def fetch_tasks(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Fetch tasks from MongoDB with optional query filtering.
