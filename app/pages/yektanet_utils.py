@@ -10,7 +10,7 @@ from PIL import Image
 
 import dotenv
 
-dotenv.load_dotenv()
+dotenv.load_dotenv("app/pages/.env", verbose=True)
 
 ADVERTISER_ID = ""
 SESSION_ID = os.getenv("SESSION_ID")
@@ -267,7 +267,7 @@ def create_ad(
             "title": ad_title,
             "item_url": ad_url,
             "description": "",
-            "user_apply": "off", # This indicates that the ad should be active or not
+            "user_apply": "off",  # This indicates that the ad should be active or not
             "cta_color": "#9BD2FF",
             "cta_title": ad_cta_title[:13],
             "image_source": "manual",
@@ -284,8 +284,8 @@ def create_ad(
 
 
 def generate_ad_image(ad_image_description: str):
-    refresh_token()
     print("Generating image")
+    refresh_token()
     image_creation_request = requests.post(
         url="https://assistant.yektanet.com/api/v2/facilitator/assets/images/",
         headers=HEADERS,

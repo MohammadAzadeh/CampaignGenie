@@ -2,6 +2,7 @@ import time
 from datetime import datetime
 
 from textwrap import dedent
+from pages.yektanet_utils import create_native_campaign, generate_ad_image, create_ad
 
 from pages.models import (
     GenerateCampaignPlanTask,
@@ -17,7 +18,6 @@ from pages.mongodb_utils import (
     fetch_one_campaign_plan,
     update_campaign_plan,
 )
-from pages.yektanet_utils import create_native_campaign, generate_ad_image, create_ad
 
 
 class TaskConsumer:
@@ -79,6 +79,12 @@ class TaskConsumer:
                 {"campaign_plan_id": task.campaign_plan_id}
             )
             campaign_plan = CampaignPlanDB.model_validate(campaign_plan)
+        except Exception as e:
+            print(
+                f"Error fetching campaign plan for task: {task.campaign_plan_id} error: {e}"
+            )
+            return
+        try:
             if task.status == "new":
                 if campaign_plan and campaign_plan.type == "native":
                     created_campaign_id = create_native_campaign(
@@ -96,7 +102,7 @@ class TaskConsumer:
                         task.status = "failed"
                     else:
                         print(f"Created campaign with ID: {created_campaign_id}")
-                        task.status = "created_campaign"
+                        task.status = "create_ads"
                         task.created_campaign_id = str(created_campaign_id)
                 else:
                     print(f"No campaign plan found for task: {task.campaign_plan_id}")
@@ -104,28 +110,32 @@ class TaskConsumer:
             elif task.status == "create_ads":
                 print(f"Creating ads for campaign: {task.created_campaign_id}")
                 for ad in campaign_plan.ads_description:
-
                     if ad.image.source == "generate" and ad.image.image_url is None:
                         ad.image.image_url = generate_ad_image(ad.image.prompt)
                     if ad.image.image_url is None:
                         print(f"Failed to generate image for ad: {ad.title}")
                         task.status = "failed"
                         break
-
-                    created_ad_id = create_ad(
-                        task.created_campaign_id,
-                        ad.title,
-                        ad.image.image_url,
-                        ad.landing_url,
-                        ad.call_to_action,
-                    )
-                    if created_ad_id is None:
-                        print(f"Failed to create ad for task: {task.campaign_plan_id}")
-                        task.status = "failed"
-                        break
-                    else:
-                        task.created_ads.append(str(created_ad_id))
-                if task.created_ads is not None and len(task.created_ads) >= len(campaign_plan.ads_description):
+                    if ad.created_ad_id is None:
+                        created_ad_id = create_ad(
+                            task.created_campaign_id,
+                            ad.title,
+                            ad.image.image_url,
+                            ad.landing_url,
+                            ad.call_to_action,
+                        )
+                        if created_ad_id is None:
+                            print(
+                                f"Failed to create ad for task: {task.campaign_plan_id}"
+                            )
+                            task.status = "failed"
+                            break
+                        else:
+                            ad.created_ad_id = str(created_ad_id)
+                            task.created_ads.append(ad.created_ad_id)
+                if task.created_ads is not None and len(task.created_ads) >= len(
+                    campaign_plan.ads_description
+                ):
                     task.status = "completed"
                 else:
                     task.status = "create_ads"
@@ -136,14 +146,11 @@ class TaskConsumer:
                 print(f"No campaign plan found for task: {task.campaign_plan_id}")
                 task.status = "failed"
         except Exception as e:
-            if isinstance(task, dict):
-                session_id = task["session_id"]
-            else:
-                session_id = task.session_id
-            print(
-                f"Error processing create yektanet campaign task for session {session_id}: {e}"
-            )
             task.status = "failed"
+            print(
+                f"Error processing create yektanet campaign task for session {task.session_id}: {e}"
+            )
+
         update_task(task)
         update_campaign_plan(campaign_plan)
 

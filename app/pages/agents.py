@@ -145,7 +145,7 @@ class FirstAgent:
             tools=[persist_campaign_request, agentic_crawl_url],
             instructions=[
                 dedent(
-                    f""" 
+                    """ 
                     You are a smart assistant for Yektanet, called CampaignGenie or جن‌کمپین.
                     Your goal is to guide the user through the process of creating a campaign on Yektanet.
                     First, you should ask the user relevant questions to gather the necessary information.
@@ -388,7 +388,7 @@ def agentic_crawl_url(url: str, goal: str, agent: Optional[Agent] = None, **kwar
         ),
         tools=[Crawl4aiTools(max_length=None)],
         instructions=[
-            dedent(f"""
+            dedent("""
                     You are a crawler agent that crawls the given url for the given goal.
                     Always communicate in Persian (Farsi) as the primary language.
                     """),

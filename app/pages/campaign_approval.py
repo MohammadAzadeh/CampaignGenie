@@ -3,9 +3,14 @@ import json
 from pathlib import Path
 from typing import Optional, List, Tuple
 
-from pages.models import GenerateCampaignPlanTask, CampaignPlan
+from pages.models import GenerateCampaignPlanTask, CampaignPlanDB
 from pages.yektanet_utils import generate_ad_image
-from pages.mongodb_utils import fetch_tasks, fetch_one_campaign_plan, update_task
+from pages.mongodb_utils import (
+    fetch_tasks,
+    fetch_one_campaign_plan,
+    update_task,
+    update_campaign_plan,
+)
 
 
 def get_pending_confirm_tasks() -> List[GenerateCampaignPlanTask]:
@@ -42,7 +47,7 @@ def update_task_status(file_path: Path, status: str, feedback: str = "") -> None
         st.error(f"Error updating task status in {file_path}: {e}")
 
 
-def display_campaign_plan(plan: CampaignPlan) -> None:
+def display_campaign_plan(plan: CampaignPlanDB) -> None:
     """Display a campaign plan in a formatted way."""
     st.header("📋 Campaign Plan Details")
 
@@ -78,17 +83,17 @@ def display_campaign_plan(plan: CampaignPlan) -> None:
 
     with col1:
         st.write("**Keywords:**")
-        for keyword in plan.targetign_config.keywords:
+        for keyword in plan.targeting_config.keywords:
             st.write(f"• {keyword}")
 
     with col2:
         st.write("**User Segments:**")
-        for segment in plan.targetign_config.user_segments:
+        for segment in plan.targeting_config.user_segments:
             st.write(f"• {segment}")
 
     with col3:
         st.write("**Categories:**")
-        for category in plan.targetign_config.categories:
+        for category in plan.targeting_config.categories:
             st.write(f"• {category}")
 
     # Ads Description
@@ -98,7 +103,7 @@ def display_campaign_plan(plan: CampaignPlan) -> None:
             st.write(f"**Ad {i}:**")
 
             # Create columns for better layout
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
 
             with col1:
                 st.write("**Title:**")
@@ -110,45 +115,74 @@ def display_campaign_plan(plan: CampaignPlan) -> None:
                 st.write("**Call to Action:**")
                 st.info(ad_desc.call_to_action)
                 st.write("**Image Description:**")
-                st.info(ad_desc.image_description)
+                st.info(ad_desc.image.prompt)
 
-            # Generate Image button and display
-            st.write("**Generate Image:**")
-            image_key = f"ad_{i}_image"
+            with col3:
+                # Display existing image if available
+                if ad_desc.image.image_url is not None:
+                    st.write("**Existing Image:**")
+                    st.image(
+                        ad_desc.image.image_url,
+                        caption=f"Existing image for Ad {i}",
+                        use_container_width=True,
+                    )
+                else:
+                    st.write("**No existing image available**")
 
-            # Check if image already generated
-            if image_key in st.session_state.generated_images:
-                st.success("✅ Image generated successfully!")
-                st.image(
-                    st.session_state.generated_images[image_key],
-                    caption=f"Generated image for Ad {i}",
-                    use_container_width=True,
-                )
-            else:
-                if st.button(f"Generate Image", key=f"generate_btn_{i}"):
-                    with st.spinner("Generating image..."):
-                        try:
-                            image_path = generate_ad_image(ad_desc.image_description)
-                            if (
-                                image_path
-                                and image_path != "Failed to generate ad image."
-                            ):
-                                st.session_state.generated_images[image_key] = (
+                # Generate Image button and display
+                image_key = f"ad_{i}_image"
+
+                # Check if image already generated
+                if image_key in st.session_state.generated_images:
+                    st.success("✅ Image generated successfully!")
+                    st.image(
+                        st.session_state.generated_images[image_key],
+                        caption=f"Generated image for Ad {i}",
+                        use_container_width=True,
+                    )
+
+                    # Save as ad image button
+                    if st.button("💾 Save as Ad Image", key=f"save_btn_{i}"):
+                        # Update the ad description with the generated image
+                        ad_desc.image.image_url = st.session_state.generated_images[
+                            image_key
+                        ]
+                        update_campaign_plan(plan)
+                        st.success("✅ Image saved as ad image!")
+                else:
+                    if st.button("Generate Image", key=f"generate_btn_{i}"):
+                        with st.spinner("Generating image..."):
+                            try:
+                                image_path = generate_ad_image(ad_desc.image.prompt)
+                                if (
                                     image_path
-                                )
-                                st.success("✅ Image generated successfully!")
-                                st.image(
-                                    image_path,
-                                    caption=f"Generated image for Ad {i}",
-                                    use_container_width=True,
-                                    width=300,
-                                )
-                            else:
-                                st.error(
-                                    "❌ Failed to generate image. Please try again."
-                                )
-                        except Exception as e:
-                            st.error(f"❌ Error generating image: {str(e)}")
+                                    and image_path != "Failed to generate ad image."
+                                ):
+                                    st.session_state.generated_images[image_key] = (
+                                        image_path
+                                    )
+                                    st.success("✅ Image generated successfully!")
+                                    st.image(
+                                        image_path,
+                                        caption=f"Generated image for Ad {i}",
+                                        use_container_width=True,
+                                        width=300,
+                                    )
+
+                                    # Save as ad image button for newly generated image
+                                    if st.button(
+                                        "💾 Save as Ad Image", key=f"save_new_btn_{i}"
+                                    ):
+                                        # Update the ad description with the generated image
+                                        ad_desc.image.image_url = image_path
+                                        update_campaign_plan(plan)
+                                        st.success("✅ Image saved as ad image!")
+                                else:
+                                    st.error(
+                                        "❌ Failed to generate image. Please try again."
+                                    )
+                            except Exception as e:
+                                st.error(f"❌ Error generating image: {str(e)}")
 
             st.markdown("---")
 
@@ -171,7 +205,7 @@ def main():
             plan_db = fetch_one_campaign_plan(
                 {"campaign_plan_id": task.campaign_plan_id}
             )
-            plan = CampaignPlan.model_validate(plan_db)
+            plan = CampaignPlanDB.model_validate(plan_db)
             name = plan.name if plan else None
             display_name = format_task_display_name(task, name)
             task_options.append(display_name)

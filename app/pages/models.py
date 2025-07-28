@@ -147,15 +147,21 @@ class CampaignConfig(BaseModel):
 
 class Image(BaseModel):
     source: Literal["generate", "user_asset"]
-    image_url: Optional[str] = Field(None, description="Image URL, if source is user_asset")
-    prompt: Optional[str] = Field(None, description="Image generation prompt for ad, if source is generate")
+    image_url: Optional[str] = Field(
+        None, description="Image URL, if source is user_asset"
+    )
+    prompt: Optional[str] = Field(
+        None, description="Image generation prompt for ad, if source is generate"
+    )
 
 
 class AdDescription(BaseModel):
     title: str
     landing_url: str
     image: Image
-    call_to_action: str = Field(..., description="Call to Action, Less than 13 characters.")
+    call_to_action: str = Field(
+        ..., description="Call to Action, Less than 13 characters."
+    )
 
 
 class CampaignPlan(BaseModel):
@@ -176,12 +182,17 @@ class CampaignPlan(BaseModel):
     ads_description: list[AdDescription]
 
 
+class AdDescriptionDB(AdDescription):
+    created_ad_id: Optional[str] = None
+
+
 class CampaignPlanDB(CampaignPlan):
     id: Optional[str] = None  # This is the MongoDB ID
     campaign_plan_id: str
     task_session_id: str
     campaign_request_id: str
     created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
+    ads_description: list[AdDescriptionDB]
 
 
 class Task(BaseModel):
