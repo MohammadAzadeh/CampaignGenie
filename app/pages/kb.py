@@ -272,4 +272,3 @@ def search_yektanet(query: str) -> List[Dict[str, str]]:
 
 # Uncomment to load documents again.
 # knowledge_base.load(recreate=False)
-

@@ -2,8 +2,8 @@ import json
 import requests
 import random
 import os
-import inspect
 import uuid
+from typing import Optional
 
 from io import BytesIO
 from PIL import Image
@@ -130,23 +130,19 @@ def refresh_token():
     ADVERTISER_ID = json.loads(response.text)["id"]
 
 
-def create_campaign(
+def create_native_campaign(
     name: str,
     daily_budget: int,
     cost_per_click: int,
     page_keywords: list[str],
     page_categories: list[str],
     user_segments: list[str],
-):
+) -> Optional[int]:
     page_categories = [
         category for category in page_categories if category in CATEGORY_MAP
     ]
     user_segments = [segment for segment in user_segments if segment in SEGMENT_MAP]
     refresh_token()
-    frame = inspect.currentframe()
-    args, _, _, values = inspect.getargvalues(frame)
-    arg_dict = {arg: values[arg] for arg in args}
-    print("Creating campaign ", arg_dict)
     campaign_creation_request = requests.post(
         url="https://api.yektanet.com/api/v2/adv/campaigns/",
         headers=HEADERS,
@@ -235,15 +231,15 @@ def create_campaign(
                 "smart_targeting": True,
             },
             "is_rubika": False,
-            "user_apply": True,
+            "user_apply": False,  # Indicates campaign should be active or not
         },
     )
     if campaign_creation_request.status_code != 201:
         print(campaign_creation_request.text, campaign_creation_request.status_code)
-        return "Failed to create campaign."
+        return None
     campaign_id = json.loads(campaign_creation_request.text)["id"]
     print(f"{campaign_id}: Created campaign")
-    return f"Campign with ID {campaign_id} created successfully."
+    return campaign_id
 
 
 def create_ad(
@@ -310,7 +306,7 @@ def generate_ad_image(ad_image_description: str):
 
 if __name__ == "__main__":
     print(
-        create_campaign(
+        create_native_campaign(
             name="تست پنج",
             daily_budget=1_000_000,
             cost_per_click=2200,

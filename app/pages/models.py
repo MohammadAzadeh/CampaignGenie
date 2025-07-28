@@ -166,7 +166,7 @@ class CampaignPlan(BaseModel):
         2000, title="Bid in Toman | Different from maximum cost per lead"
     )
     target_audience_description: str = Field(..., title="Target Audience Description")
-    targetign_config: CampaignConfig
+    targeting_config: CampaignConfig
     ads_description: list[AdDescription]
 
 
@@ -205,3 +205,5 @@ class CreateYektanetCampaignTask(Task):
     type: Literal["create_yektanet_campaign"]
     campaign_plan_id: str
     campaign_request_id: str
+    created_campaign_id: Optional[str] = None
+    created_ads: Optional[list[str]] = None

@@ -3,20 +3,31 @@ from datetime import datetime
 
 from textwrap import dedent
 
-from pages.models import GenerateCampaignPlanTask, CreateYektanetCampaignTask, CampaignPlan
+from pages.models import (
+    GenerateCampaignPlanTask,
+    CreateYektanetCampaignTask,
+    CampaignPlan,
+)
 from pages.agents import CampaignPlanner
 from pages.kb import add_document_to_knowledge_base
-from pages.mongodb_utils import fetch_one_task, update_task, insert_task, fetch_one_campaign_plan
+from pages.mongodb_utils import (
+    fetch_one_task,
+    update_task,
+    insert_task,
+    fetch_one_campaign_plan,
+)
+from pages.yektanet_utils import create_native_campaign
 
 
 class TaskConsumer:
     """Consumes tasks from the task directory and processes them."""
 
-    def process_campaign_plan_task(self, task: dict) -> None:
+    def process_generate_campaign_plan(self, task: dict) -> None:
         """Process a generate_campaign_plan task using CampaignPlanner agent."""
         try:
             task = GenerateCampaignPlanTask.model_validate(task)
             print(f"Processing campaign plan task for session: {task.session_id}")
+            # TODO: Update campaign_request status to in_progress
 
             if task.status == "confirmed":
                 print(f"Creating Yektanet campaign task for session: {task.session_id}")
@@ -31,7 +42,6 @@ class TaskConsumer:
                 )
                 insert_task(create_yektanet_task)
                 self.add_campaign_plan_to_kb(task)
-                # TODO: Update campaign_request status
                 task.status = "completed"
             else:
                 campaign_planner = CampaignPlanner(
@@ -59,12 +69,48 @@ class TaskConsumer:
             )
             task.status = "failed"
         update_task(task)
-        # TODO: Update campaign_request status
+
+    def process_create_yektanet_campaign(self, task: dict) -> None:
+        """Process a create_yektanet_campaign task."""
+        try:
+            task = CreateYektanetCampaignTask.model_validate(task)
+            campaign_plan = fetch_one_campaign_plan(
+                {"campaign_plan_id": task.campaign_plan_id}
+            )
+            campaign_plan = CampaignPlan.model_validate(campaign_plan)
+            if campaign_plan:
+                created_campaign_id = create_native_campaign(
+                    name=campaign_plan.name,
+                    daily_budget=campaign_plan.budget,
+                    cost_per_click=campaign_plan.bid_toman,
+                    page_keywords=campaign_plan.targeting_config.keywords,
+                    page_categories=campaign_plan.targeting_config.categories,
+                    user_segments=campaign_plan.targeting_config.user_segments,
+                )
+                if created_campaign_id is None:
+                    print(f"Failed to create campaign for task: {task.campaign_plan_id}")
+                    task.status = "failed"
+                else:
+                    print(f"Created campaign with ID: {created_campaign_id}")
+                    task.status = "completed"
+                    task.created_campaign_id = str(created_campaign_id)
+            else:
+                print(f"No campaign plan found for task: {task.campaign_plan_id}")
+                task.status = "failed"
+            update_task(task)
+        except Exception as e:
+            print(
+                f"Error processing create yektanet campaign task for session {task['session_id']}: {e}"
+            )
+            task.status = "failed"
+            update_task(task)
 
     def add_campaign_plan_to_kb(self, task: GenerateCampaignPlanTask) -> None:
         """Adds the campaign plan to the knowledge base."""
         try:
-            campaign_plan = fetch_one_campaign_plan({"campaign_plan_id": task.campaign_plan_id})
+            campaign_plan = fetch_one_campaign_plan(
+                {"campaign_plan_id": task.campaign_plan_id}
+            )
             campaign_plan = CampaignPlan.model_validate(campaign_plan)
             if campaign_plan:
                 name = f"کمپین پلن {campaign_plan.name} | {campaign_plan.goal}"
@@ -101,7 +147,9 @@ class TaskConsumer:
                 if task is not None:
                     print(f"Found a task: {task}")
                     if task["type"] == "generate_campaign_plan":
-                        self.process_campaign_plan_task(task)
+                        self.process_generate_campaign_plan(task)
+                    elif task["type"] == "create_yektanet_campaign":
+                        self.process_create_yektanet_campaign(task)
                     else:
                         print(f"Unknown task type: {task.get('type', 'NO_TYPE')}")
                         # TODO: Mark unknown task types as failed
