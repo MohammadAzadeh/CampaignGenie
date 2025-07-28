@@ -9,11 +9,12 @@ from io import BytesIO
 from PIL import Image
 
 import dotenv
+
 dotenv.load_dotenv()
 
-ADVERTISER_ID = ''
+ADVERTISER_ID = ""
 SESSION_ID = os.getenv("SESSION_ID")
-COOKIES = f'sessionid={SESSION_ID}'
+COOKIES = f"sessionid={SESSION_ID}"
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 
 CATEGORY_MAP = {
@@ -63,40 +64,40 @@ CATEGORY_MAP = {
     "اجتماعی": "IAB380",
 }
 
-{"image":["یک عکس معتبر آپلود کنید. فایلی که ارسال کردید عکس یا عکس خراب شده نیست"]}
+{"image": ["یک عکس معتبر آپلود کنید. فایلی که ارسال کردید عکس یا عکس خراب شده نیست"]}
 
 SEGMENT_MAP = {
-    'سفر و گردشگری': 28,
-    'خدمات': 51,
-    'مذهب': 30,
-    'مدرسه و کنکور سراسری': 26,
-    'املاک': 44,
-    'غذا و نوشیدنی': 9,
-    'ساخت و ساز و تغییر دکوراسیون': 55,
-    'سرگرمی و مهارت و هنر': 56,
-    'دانشگاه و تحصیلات عالی': 53,
-    'لوازم و تجهیزات خانه': 61,
-    'تفریح': 48,
-    'صنعت و کشاورزی': 58,
-    'مراقبت زیبایی و بهداشت فردی': 62,
-    'کسب و کار': 60,
-    'بازی ویدیویی': 45,
-    'سینما و تلویزیون و تئاتر': 57,
-    'سرمایه شخصی': 18,
-    'جراحی و خدمات زیبایی': 49,
-    'اشتغال': 42,
-    'سبک زندگی سالم': 7,
-    'کتاب و ادبیات': 59,
-    'والدین': 11,
-    'خودرو': 52,
-    'زبان آموزی': 54,
-    'مد و پوشاک': 15,
-    'تجهیزات الکترونیک شخصی': 46,
-    'مهاجرت': 29,
-    'تخفیف و قرعه\u200cکشی': 47,
-    'تکنولوژی': 19,
-    'جشن\u200cها و مراسمات': 50,
-    'اقتصاد': 43,
+    "سفر و گردشگری": 28,
+    "خدمات": 51,
+    "مذهب": 30,
+    "مدرسه و کنکور سراسری": 26,
+    "املاک": 44,
+    "غذا و نوشیدنی": 9,
+    "ساخت و ساز و تغییر دکوراسیون": 55,
+    "سرگرمی و مهارت و هنر": 56,
+    "دانشگاه و تحصیلات عالی": 53,
+    "لوازم و تجهیزات خانه": 61,
+    "تفریح": 48,
+    "صنعت و کشاورزی": 58,
+    "مراقبت زیبایی و بهداشت فردی": 62,
+    "کسب و کار": 60,
+    "بازی ویدیویی": 45,
+    "سینما و تلویزیون و تئاتر": 57,
+    "سرمایه شخصی": 18,
+    "جراحی و خدمات زیبایی": 49,
+    "اشتغال": 42,
+    "سبک زندگی سالم": 7,
+    "کتاب و ادبیات": 59,
+    "والدین": 11,
+    "خودرو": 52,
+    "زبان آموزی": 54,
+    "مد و پوشاک": 15,
+    "تجهیزات الکترونیک شخصی": 46,
+    "مهاجرت": 29,
+    "تخفیف و قرعه\u200cکشی": 47,
+    "تکنولوژی": 19,
+    "جشن\u200cها و مراسمات": 50,
+    "اقتصاد": 43,
 }
 
 
@@ -104,26 +105,29 @@ def refresh_token():
     global HEADERS, ADVERTISER_ID
 
     response = requests.get(
-        url=f'https://accounts.yektanet.com/api/v2/token/access/internal/?account={ACCOUNT_ID}',
+        url=f"https://accounts.yektanet.com/api/v2/token/access/internal/?account={ACCOUNT_ID}",
         headers={
-            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Referer': 'https://panel.yektanet.com/',
-            'Origin': 'https://panel.yektanet.com',
-            'Connection': 'keep-alive',
-            'Cookie': COOKIES,
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-site',
-            'TE': 'trailers',
+            "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": "https://panel.yektanet.com/",
+            "Origin": "https://panel.yektanet.com",
+            "Connection": "keep-alive",
+            "Cookie": COOKIES,
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+            "TE": "trailers",
         },
     )
-    HEADERS = {"Authorization": "JWT " +
-               json.loads(response.text)['token'], "Cookie": COOKIES}
+    HEADERS = {
+        "Authorization": "JWT " + json.loads(response.text)["token"],
+        "Cookie": COOKIES,
+    }
     response = requests.get(
-        "https://api.yektanet.com/api/v2/adv/profile/", headers=HEADERS)
-    ADVERTISER_ID = json.loads(response.text)['id']
+        "https://api.yektanet.com/api/v2/adv/profile/", headers=HEADERS
+    )
+    ADVERTISER_ID = json.loads(response.text)["id"]
 
 
 def create_campaign(
@@ -134,7 +138,9 @@ def create_campaign(
     page_categories: list[str],
     user_segments: list[str],
 ):
-    page_categories = [category for category in page_categories if category in CATEGORY_MAP]
+    page_categories = [
+        category for category in page_categories if category in CATEGORY_MAP
+    ]
     user_segments = [segment for segment in user_segments if segment in SEGMENT_MAP]
     refresh_token()
     frame = inspect.currentframe()
@@ -184,15 +190,28 @@ def create_campaign(
             "display_location": [],
             "show_only_in_capital": False,
             "display_in_all_isp": True,
-            "display_isp": ["Shatel", "Iran Cell", "Mobile Communication Company", "Rightel", "Asiatech", "Mobin Net", "Telecommunication", "Pars Online", "Afranet", "Respina", "Information Technology Company", "Neda Rayaneh", "Other"],
+            "display_isp": [
+                "Shatel",
+                "Iran Cell",
+                "Mobile Communication Company",
+                "Rightel",
+                "Asiatech",
+                "Mobin Net",
+                "Telecommunication",
+                "Pars Online",
+                "Afranet",
+                "Respina",
+                "Information Technology Company",
+                "Neda Rayaneh",
+                "Other",
+            ],
             "publisher_floating_bids": [],
             "publisher_group_floating_bids": [],
             "subcategories": [
-                {"category_id": CATEGORY_MAP.get(category), "subcategory_id": 0} for category in page_categories
+                {"category_id": CATEGORY_MAP.get(category), "subcategory_id": 0}
+                for category in page_categories
             ],
-            "keywords": [
-                {"keyword": keyword} for keyword in page_keywords
-            ],
+            "keywords": [{"keyword": keyword} for keyword in page_keywords],
             "negative_keywords": [],
             "broad_allowed": True,
             "goal": {"type": "9", "tags": []},
@@ -216,19 +235,20 @@ def create_campaign(
                 "smart_targeting": True,
             },
             "is_rubika": False,
-            "user_apply": True
+            "user_apply": True,
         },
     )
     if campaign_creation_request.status_code != 201:
-        print(campaign_creation_request.text,
-              campaign_creation_request.status_code)
+        print(campaign_creation_request.text, campaign_creation_request.status_code)
         return "Failed to create campaign."
     campaign_id = json.loads(campaign_creation_request.text)["id"]
     print(f"{campaign_id}: Created campaign")
     return f"Campign with ID {campaign_id} created successfully."
 
 
-def create_ad(campaign_id: int, ad_title: str, image_path: str, ad_url: str, ad_cta_title: str):
+def create_ad(
+    campaign_id: int, ad_title: str, image_path: str, ad_url: str, ad_cta_title: str
+):
     with open(image_path, "rb") as f:
         refresh_token()
         print(f"{campaign_id}: Creating ad")
@@ -251,7 +271,7 @@ def create_ad(campaign_id: int, ad_title: str, image_path: str, ad_url: str, ad_
         if ad_creation_request.status_code != 201:
             print(ad_creation_request.text, ad_creation_request.status_code)
             return "Failed to create ad."
-        ad_id = json.loads(ad_creation_request.text)['id']
+        ad_id = json.loads(ad_creation_request.text)["id"]
         print(f"{campaign_id}: Created ad {ad_id}")
     return f"Ad with ID {ad_id} created successfully."
 
@@ -273,7 +293,7 @@ def generate_ad_image(ad_image_description: str):
     if image_creation_request.status_code != 201:
         print(image_creation_request.text, image_creation_request.status_code)
         return "Failed to generate ad image."
-    image_url = json.loads(image_creation_request.text)['images'][0]['image']
+    image_url = json.loads(image_creation_request.text)["images"][0]["image"]
     print(f"Generated image {image_url}")
     print(f"Downloading Image")
     resp = requests.get(image_url, timeout=20)
@@ -288,17 +308,18 @@ def generate_ad_image(ad_image_description: str):
     return image_path
 
 
-
 if __name__ == "__main__":
-    print(create_campaign(
-        name="تست پنج",
-        daily_budget=1_000_000,
-        cost_per_click=2200,
-        page_keywords=["لیفت صورت"],
-        page_categories=[],
-        user_segments=[],
-        ad_title="رزرو ویلای خفن با شب",
-        ad_image_description="مردی در حال خوردن چای لب ساحل با خانواده",
-        ad_url="https://shab.ir",
-        ad_cta_title="رزرو کن!",
-    ))
+    print(
+        create_campaign(
+            name="تست پنج",
+            daily_budget=1_000_000,
+            cost_per_click=2200,
+            page_keywords=["لیفت صورت"],
+            page_categories=[],
+            user_segments=[],
+            ad_title="رزرو ویلای خفن با شب",
+            ad_image_description="مردی در حال خوردن چای لب ساحل با خانواده",
+            ad_url="https://shab.ir",
+            ad_cta_title="رزرو کن!",
+        )
+    )

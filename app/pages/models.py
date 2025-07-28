@@ -81,7 +81,7 @@ CategoryType = Literal[
     "مهاجرت",
     "حقوق",
     "سیاست",
-    "اجتماعی"
+    "اجتماعی",
 ]
 
 UserSegmentType = CategoryType  # Same type since they use the same values
@@ -101,9 +101,7 @@ class Business(BaseModel):
 
 
 class MarketingExperience(BaseModel):
-    is_traditional: bool = Field(
-        ..., description="Is traditional marketing experience"
-    )
+    is_traditional: bool = Field(..., description="Is traditional marketing experience")
     is_digital: bool = Field(..., description="Is digital marketing experience")
     description: str = Field(..., description="Description of marketing experience")
     spent_budget: str = Field(..., description="Amount of budget spent on marketing")
@@ -128,36 +126,30 @@ class CampaignRequest(BaseModel):
 
 
 class CampaignRequestDB(CampaignRequest):
-    id: Optional[str] = None # This is the MongoDB ID
+    id: Optional[str] = None  # This is the MongoDB ID
     campaign_request_id: str
     advertiser_id: str
     status: Literal["new", "in_progress", "completed", "failed"]
     created_at: datetime
     session_id: str
-    
+
 
 class CampaignConfig(BaseModel):
     keywords: list[str] = Field(
-        ..., 
-        description="Keywords to target, it should be keywords that are related to the business or intersting to the target audience"
+        ...,
+        description="Keywords to target, it should be keywords that are related to the business or intersting to the target audience",
     )
     user_segments: list[UserSegmentType] = Field(
-        ..., 
-        description="User segments to target."
+        ..., description="User segments to target."
     )
-    categories: list[CategoryType] = Field(
-        ..., 
-        description="Categories to target."
-    )
+    categories: list[CategoryType] = Field(..., description="Categories to target.")
 
 
 class AdDescription(BaseModel):
     title: str = Field(..., title="Ad Title")
     landing_url: str = Field(..., title="Landing URL")
     image_description: str = Field(..., title="Image generation prompt for ad")
-    call_to_action: str = Field(
-        ..., title="Call to Action, Less than 13 characters."
-    )
+    call_to_action: str = Field(..., title="Call to Action, Less than 13 characters.")
 
 
 class CampaignPlan(BaseModel):
@@ -179,27 +171,25 @@ class CampaignPlan(BaseModel):
 
 
 class CampaignPlanDB(CampaignPlan):
-    id: Optional[str] = None # This is the MongoDB ID
+    id: Optional[str] = None  # This is the MongoDB ID
     campaign_plan_id: str
     task_session_id: str
     campaign_request_id: str
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow, title="Created At"
-    )
+    created_at: datetime = Field(default_factory=datetime.utcnow, title="Created At")
 
 
 class Task(BaseModel):
-    id: Optional[str] = None # This is the MongoDB ID
+    id: Optional[str] = None  # This is the MongoDB ID
     type: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     description: str
     status: Literal[
-        'new', # Task is created and waiting for execution
-        'pending_confirm', # Task is waiting for confirmation in panel
-        'retry_with_feedback', # Task should be retried with feedback
-        'confirmed', # Task is confirmed and waiting for completion
-        'completed', # Task is completed
-        'failed' # Task is failed
+        "new",  # Task is created and waiting for execution
+        "pending_confirm",  # Task is waiting for confirmation in panel
+        "retry_with_feedback",  # Task should be retried with feedback
+        "confirmed",  # Task is confirmed and waiting for completion
+        "completed",  # Task is completed
+        "failed",  # Task is failed
     ]
     session_id: str
 
@@ -210,3 +200,8 @@ class GenerateCampaignPlanTask(Task):
     campaign_plan_id: Optional[str] = None
     feedbacks: list[str] = Field(default_factory=list)
 
+
+class CreateYektanetCampaignTask(Task):
+    type: Literal["create_yektanet_campaign"]
+    campaign_plan_id: str
+    campaign_request_id: str

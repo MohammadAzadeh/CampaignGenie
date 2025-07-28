@@ -22,7 +22,7 @@ if "session_id" not in st.session_state:
 # Display session ID
 if "session_id" in st.session_state:
     st.markdown("**Session ID:**")
-    st.code(st.session_state['session_id'], language="text")
+    st.code(st.session_state["session_id"], language="text")
 
 if "agent" not in st.session_state:
     st.session_state["agent"] = FirstAgent(session_id=st.session_state["session_id"])
@@ -30,7 +30,9 @@ if "agent" not in st.session_state:
 # Load messages from TinyDB on first run
 if "messages" not in st.session_state:
     messages: List[Message] = st.session_state["agent"].agent.get_messages_for_session()
-    st.session_state["messages"] = [{"sender": m.role, "message": m.content} for m in messages]
+    st.session_state["messages"] = [
+        {"sender": m.role, "message": m.content} for m in messages
+    ]
 
     # Add initial assistant message if no previous messages exist
     if not st.session_state["messages"]:
@@ -48,19 +50,26 @@ if "messages" not in st.session_state:
 
 """
         )
-        st.session_state["messages"] = [{"sender": "Assistant", "message": initial_message}]
+        st.session_state["messages"] = [
+            {"sender": "Assistant", "message": initial_message}
+        ]
 
 # Display chat history using chat bubbles
 for row in st.session_state["messages"]:
     with st.chat_message(row["sender"]):
         message = row["message"]
         if message is None:
-            message = ""        # Detect Persian (RTL) text
+            message = ""  # Detect Persian (RTL) text
         is_rtl = any(
-            "\u0600" <= c <= "\u06FF" or "\u0750" <= c <= "\u077F" or "\u08A0" <= c <= "\u08FF" for c in message
+            "\u0600" <= c <= "\u06ff"
+            or "\u0750" <= c <= "\u077f"
+            or "\u08a0" <= c <= "\u08ff"
+            for c in message
         )
         if is_rtl:
-            rtl_html = f'<div style="text-align: right; direction: rtl;">' f"{message}</div>"
+            rtl_html = (
+                f'<div style="text-align: right; direction: rtl;">{message}</div>'
+            )
             st.markdown(rtl_html, unsafe_allow_html=True)
         else:
             st.markdown(message)
@@ -82,9 +91,9 @@ st.sidebar.markdown("### Session Management")
 # new_session_id = st.sidebar.text_input("Enter Session ID to resume:", key="session_input")
 new_session_id = st.sidebar.text_input(
     "Enter Session ID to resume:",  # Descriptive label for accessibility
-    value=st.session_state['session_id'], 
-    key="session_input", 
-    label_visibility="collapsed"  # This hides the label visually
+    value=st.session_state["session_id"],
+    key="session_input",
+    label_visibility="collapsed",  # This hides the label visually
 )
 # Resume session button
 if st.sidebar.button("Resume Session", type="secondary"):
@@ -92,14 +101,21 @@ if st.sidebar.button("Resume Session", type="secondary"):
         st.session_state["session_id"] = new_session_id
         st.session_state["agent"] = FirstAgent(session_id=new_session_id)
         from pages.agents import SqliteStorage
+
         s: SqliteStorage = st.session_state["agent"].agent.storage
         # Load messages for the new session
-        messages: List[Message] = st.session_state["agent"].agent.get_messages_for_session(new_session_id)
+        messages: List[Message] = st.session_state[
+            "agent"
+        ].agent.get_messages_for_session(new_session_id)
         for m in messages:
             if m.role == "user":
-                st.session_state["messages"].append({"sender": m.role, "message": m.content[0]['text']})   
+                st.session_state["messages"].append(
+                    {"sender": m.role, "message": m.content[0]["text"]}
+                )
             elif m.role == "assistant":
-                st.session_state["messages"].append({"sender": m.role, "message": m.content})
+                st.session_state["messages"].append(
+                    {"sender": m.role, "message": m.content}
+                )
         st.rerun()
     else:
         st.sidebar.error("Please enter a session ID")

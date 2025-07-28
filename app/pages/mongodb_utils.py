@@ -84,6 +84,7 @@ def insert_task(task: Task) -> str:
     result = collection.insert_one(task.model_dump())
     return str(result.inserted_id)
 
+
 def update_task(task: Task) -> None:
     """
     Update a Task in the Tasks collection.
@@ -105,22 +106,29 @@ def insert_campaign_plan(campaign_plan: CampaignPlanDB) -> str:
     result = collection.insert_one(campaign_plan.model_dump())
     return str(result.inserted_id)
 
+
 def update_campaign_plan(campaign_plan: CampaignPlanDB) -> None:
     """
     Update a CampaignPlan in the CampaignPlans collection.
     """
     assert campaign_plan.id is not None, "CampaignPlan ID is required"
-    collection = get_mongodb_manager().get_collection(get_mongodb_campaign_plans_collection())
+    collection = get_mongodb_manager().get_collection(
+        get_mongodb_campaign_plans_collection()
+    )
     campaign_plan_dict = campaign_plan.model_dump()
     campaign_plan_dict.pop("id")
-    collection.update_one({"_id": ObjectId(campaign_plan.id)}, {"$set": campaign_plan_dict})
+    collection.update_one(
+        {"_id": ObjectId(campaign_plan.id)}, {"$set": campaign_plan_dict}
+    )
+
 
 def fetch_one_campaign_request(query: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch campaign requests from MongoDB with optional status filtering.
 
     Args:
-        status: Optional status filter (e.g., "new", "in_progress", "completed", "failed")
+        status: Optional status filter (e.g., "new", "in_progress",
+        "completed", "failed")
 
     Returns:
         List of campaign request dictionaries
@@ -164,11 +172,14 @@ def fetch_one_task(query: Dict[str, Any]) -> Dict[str, Any]:
 
     return document
 
+
 def fetch_one_campaign_plan(query: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch one campaign plan from MongoDB with optional query filtering.
     """
-    collection = get_mongodb_manager().get_collection(get_mongodb_campaign_plans_collection())
+    collection = get_mongodb_manager().get_collection(
+        get_mongodb_campaign_plans_collection()
+    )
     document = collection.find_one(query)
     if document is None:
         return None
@@ -178,13 +189,33 @@ def fetch_one_campaign_plan(query: Dict[str, Any]) -> Dict[str, Any]:
     return document
 
 
+def fetch_latest_campaign_plan(session_id: str) -> Optional[CampaignPlanDB]:
+    """
+    Fetch the latest campaign plan for a given session.
+    """
+    collection = get_mongodb_manager().get_collection(
+        get_mongodb_campaign_plans_collection()
+    )
+    document = collection.find_one(
+        {"task_session_id": session_id},
+        sort=[("created_at", -1)],  # Sort by created_at descending to get latest
+    )
+    if document is None:
+        return None
+
+    # Convert ObjectId to string for JSON serialization
+    if "_id" in document:
+        document["id"] = str(document["_id"])
+        del document["_id"]
+
+    return CampaignPlanDB.model_validate(document)
+
+
 def fetch_tasks(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Fetch tasks from MongoDB with optional query filtering.
     """
-    collection = get_mongodb_manager().get_collection(
-        get_mongodb_tasks_collection()
-    )
+    collection = get_mongodb_manager().get_collection(get_mongodb_tasks_collection())
     documents = list(collection.find(query))
     for document in documents:
         if "_id" in document:

@@ -12,8 +12,20 @@ from agno.tools.crawl4ai import Crawl4aiTools
 
 from datetime import datetime
 
-from pages.models import CampaignRequest, CampaignRequestDB, CampaignPlan, GenerateCampaignPlanTask, CampaignPlanDB
-from pages.kb import campaign_planner_retriever, get_documents_for_user_request, knowledge_base, search_yektanet, add_documents_to_knowledge_base
+from pages.models import (
+    CampaignRequest,
+    CampaignRequestDB,
+    CampaignPlan,
+    GenerateCampaignPlanTask,
+    CampaignPlanDB,
+)
+from pages.kb import (
+    campaign_planner_retriever,
+    get_documents_for_user_request,
+    knowledge_base,
+    search_yektanet,
+    add_documents_to_knowledge_base,
+)
 from pages.prompts import YEKTANET_SERVICES
 from pages.config import (
     OPENAI_BASE_URL,
@@ -30,11 +42,19 @@ from pages.config import (
     get_tasks_dir_path,
     CRAWLER_AGENT_DB_PATH,
     CRAWLER_AGENT_TABLE_NAME,
-    )
-from pages.mongodb_utils import insert_campaign_request, insert_task, fetch_one_campaign_request, insert_campaign_plan, update_campaign_plan
+)
+from pages.mongodb_utils import (
+    insert_campaign_request,
+    insert_task,
+    fetch_one_campaign_request,
+    insert_campaign_plan,
+    update_campaign_plan,
+)
 
 
-def persist_campaign_request(campaign_request: CampaignRequest, agent: Optional[Agent] = None, **kwargs) -> None:
+def persist_campaign_request(
+    campaign_request: CampaignRequest, agent: Optional[Agent] = None, **kwargs
+) -> None:
     """Store the request for this session via MongoDB."""
     campaign_request_db = CampaignRequestDB(
         **campaign_request.model_dump(),
@@ -42,9 +62,9 @@ def persist_campaign_request(campaign_request: CampaignRequest, agent: Optional[
         session_id=agent.session_id,
         advertiser_id=agent.user_id,
         created_at=datetime.now(),
-        status="new"
+        status="new",
     )
-    
+
     insert_campaign_request(campaign_request_db)
     task = GenerateCampaignPlanTask(
         type="generate_campaign_plan",
@@ -52,17 +72,16 @@ def persist_campaign_request(campaign_request: CampaignRequest, agent: Optional[
         status="new",
         session_id=str(uuid.uuid4()),
         created_at=datetime.now(),
-        campaign_request_id=campaign_request_db.campaign_request_id
+        campaign_request_id=campaign_request_db.campaign_request_id,
     )
     insert_task(task)
 
-def ask_from_knowledge_base(
-    question: str
-) -> str:
+
+def ask_from_knowledge_base(question: str) -> str:
     """
     Answers a question using the knowledge base.
     It creates an agent with the knowledge base and asks the question to it.
-    
+
     Args:
         question (str): The question to answer
 
@@ -89,22 +108,22 @@ def ask_from_knowledge_base(
             monitoring=False,
         )
         documents = knowledge_base.search(query=question, num_documents=10)
-        
+
         if not documents:
             return "No documents found"
-        
+
         # Generate formatted message with document information
         message_parts = []
-        
+
         for i, doc in enumerate(documents, 1):
             doc_dict = doc.to_dict()
-            name = doc_dict.get('name', 'نامشخص')
-            content_type = doc_dict.get('meta_data', {}).get('contenttype', 'نامشخص')
-            
+            name = doc_dict.get("name", "نامشخص")
+            content_type = doc_dict.get("meta_data", {}).get("contenttype", "نامشخص")
+
             message_parts.append(f"{i}. {name} ({content_type})")
-        
+
         related_docs = "\n\n".join(message_parts)
-    
+
         response = agent.run(f"Question: {question}\n\n Documents: {related_docs}")
         return response
     except Exception as e:
@@ -123,9 +142,7 @@ class FirstAgent:
                 base_url=OPENAI_BASE_URL,
                 api_key=get_openai_api_key(),
             ),
-            tools=[
-                persist_campaign_request,
-                agentic_crawl_url],
+            tools=[persist_campaign_request, agentic_crawl_url],
             instructions=[
                 dedent(
                     f""" 
@@ -135,14 +152,17 @@ class FirstAgent:
                     If the user provides a website url, you should use the agentic_crawl_url tool to crawl 
                     the website and gather the necessary information. Provide proper goal for the crawling.
                     Then, you should use the persist_user_request tool to create a CampaignRequest object.
-                    """),
-                    dedent(f"""
+                    """
+                ),
+                dedent(f"""
                     Following is the list of services available on Yektanet:
                     {YEKTANET_SERVICES}
                     """),
-                    "Always communicate in Persian (Farsi) as the primary language."
+                "Always communicate in Persian (Farsi) as the primary language.",
             ],
-            storage=SqliteStorage(table_name=FIRST_AGENT_TABLE_NAME, db_file=FIRST_AGENT_DB_PATH),
+            storage=SqliteStorage(
+                table_name=FIRST_AGENT_TABLE_NAME, db_file=FIRST_AGENT_DB_PATH
+            ),
             add_datetime_to_instructions=True,
             # Adds the history of the conversation to the messages
             add_history_to_messages=True,
@@ -160,7 +180,9 @@ class FirstAgent:
         self.agent.read_from_storage(session_id=session_id)
 
     def respond(self, user_message: str):
-        reply = self.agent.run(Message(role="user", content=[{"type": "text", "text": user_message}]))
+        reply = self.agent.run(
+            Message(role="user", content=[{"type": "text", "text": user_message}])
+        )
         return reply.content
 
 
@@ -172,7 +194,6 @@ class CampaignPlanner:
         self.campaign_request_id = campaign_request_id
 
         self.agent = Agent(
-
             name="Campaign Planner Agent",
             model=OpenAIChat(
                 id=GPT_MODEL_ID,
@@ -180,19 +201,22 @@ class CampaignPlanner:
                 api_key=get_openai_api_key(),
             ),
             tools=[
-                # search_yektanet, 
+                # search_yektanet,
                 # agentic_crawl_url,
                 # ask_from_knowledge_base,
-                ],
+            ],
             goal="Create a CampaignPlan to handle the given CampaignRequest in persian",
-            instructions=[dedent("""
+            instructions=[
+                dedent("""
                           You're given a CampaignRequest to create a digital marketing campaign in Yektanet.                                                   
                           Related documents are provided to you.
                         
                         * If a similar campaign plan is provided, use it as a reference.
-                          """)],
-            storage=SqliteStorage(table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH),
-
+                          """)
+            ],
+            storage=SqliteStorage(
+                table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH
+            ),
             add_datetime_to_instructions=True,
             # Adds the history of the conversation to the messages
             add_history_to_messages=True,
@@ -209,22 +233,38 @@ class CampaignPlanner:
 
     def resume(self, feedbacks: list[str]) -> CampaignPlan:
         try:
-            reply = self.agent.run(Message(role="user", content=[{"type": "text", "text": f"Update accoring to user feedback {feedbacks}"}]))
+            reply = self.agent.run(
+                Message(
+                    role="user",
+                    content=[
+                        {
+                            "type": "text",
+                            "text": f"Update accoring to user feedback {feedbacks}",
+                        }
+                    ],
+                )
+            )
             campaign_plan: CampaignPlan = reply.content
             return self.insert_campaign_plan(campaign_plan)
         except Exception as e:
             print(f"Error in CampaignPlanner: {e}")
             return None
-    
+
     def respond(self) -> CampaignPlanDB:
         try:
             # TODO: Remove this after testing
             print(f"Deleting session {self.session_id}")
-            storage = SqliteStorage(table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH)
+            storage = SqliteStorage(
+                table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH
+            )
             storage.delete_session(self.session_id)
 
-            assert self.campaign_request_id is not None, "CampaignRequest ID is required"
-            campaign_request_db = fetch_one_campaign_request({"campaign_request_id": self.campaign_request_id})
+            assert self.campaign_request_id is not None, (
+                "CampaignRequest ID is required"
+            )
+            campaign_request_db = fetch_one_campaign_request(
+                {"campaign_request_id": self.campaign_request_id}
+            )
             campaign_request = CampaignRequest.model_validate(campaign_request_db)
 
             if campaign_request is None:
@@ -234,13 +274,15 @@ class CampaignPlanner:
             documents_info = get_documents_for_user_request(campaign_request)
 
             # Combine user request with documents info
-            combined_input = f"CampaignRequest:\n{campaign_request.model_dump_json(indent=2)}\n"
+            combined_input = (
+                f"CampaignRequest:\n{campaign_request.model_dump_json(indent=2)}\n"
+            )
             combined_input += f"Related documents:\n{documents_info}"
 
             reply = self.agent.run(combined_input)
             campaign_plan: CampaignPlan = reply.content
             return self.insert_campaign_plan(campaign_plan)
-        
+
         except Exception as e:
             print(f"Error in CampaignPlanner: {e}")
             return None
@@ -251,10 +293,11 @@ class CampaignPlanner:
             task_session_id=self.session_id,
             campaign_plan_id=str(uuid.uuid4()),
             campaign_request_id=self.campaign_request_id,
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
         insert_campaign_plan(campaign_plan_db)
         return campaign_plan_db
+
 
 class KbgkAgent:
     """Knowledge Base Gate Keeper Agent for generating and inserting documents into knowledge base."""
@@ -267,10 +310,11 @@ class KbgkAgent:
                 base_url=OPENAI_BASE_URL,
                 api_key=get_openai_api_key(),
             ),
-            tools=[Crawl4aiTools(max_length=None),
-                   search_yektanet,
-                   add_documents_to_knowledge_base
-                ],
+            tools=[
+                Crawl4aiTools(max_length=None),
+                search_yektanet,
+                add_documents_to_knowledge_base,
+            ],
             knowledge=knowledge_base,
             search_knowledge=True,
             instructions=[
@@ -305,7 +349,9 @@ class KbgkAgent:
                     """
                 )
             ],
-            storage=SqliteStorage(table_name=KBGK_AGENT_TABLE_NAME, db_file=KBGK_AGENT_DB_PATH),
+            storage=SqliteStorage(
+                table_name=KBGK_AGENT_TABLE_NAME, db_file=KBGK_AGENT_DB_PATH
+            ),
             add_datetime_to_instructions=True,
             add_history_to_messages=True,
             num_history_responses=5,
@@ -320,7 +366,9 @@ class KbgkAgent:
         self.agent.read_from_storage(session_id=session_id)
 
     def respond(self, user_message: str):
-        reply = self.agent.run(Message(role="user", content=[{"type": "text", "text": user_message}]))
+        reply = self.agent.run(
+            Message(role="user", content=[{"type": "text", "text": user_message}])
+        )
         return reply.content
 
 
@@ -334,24 +382,34 @@ def agentic_crawl_url(url: str, goal: str, agent: Optional[Agent] = None, **kwar
         session_id=agent.session_id,
         user_id=agent.user_id,
         model=OpenAIChat(
-                    id=MINI_GPT_MODEL_ID,
-                    base_url=OPENAI_BASE_URL,
-                    api_key=get_openai_api_key(),
-                ),
-        tools=[Crawl4aiTools(max_length=None)], 
-        instructions=[dedent(f"""
+            id=MINI_GPT_MODEL_ID,
+            base_url=OPENAI_BASE_URL,
+            api_key=get_openai_api_key(),
+        ),
+        tools=[Crawl4aiTools(max_length=None)],
+        instructions=[
+            dedent(f"""
                     You are a crawler agent that crawls the given url for the given goal.
                     Always communicate in Persian (Farsi) as the primary language.
                     """),
-                    ],
-        storage=SqliteStorage(table_name=CRAWLER_AGENT_TABLE_NAME, db_file=CRAWLER_AGENT_DB_PATH),
+        ],
+        storage=SqliteStorage(
+            table_name=CRAWLER_AGENT_TABLE_NAME, db_file=CRAWLER_AGENT_DB_PATH
+        ),
         show_tool_calls=True,
         debug_mode=AGENT_DEBUG_MODE,
         telemetry=False,
         monitoring=False,
+    )
+    reply = crawler_agent.run(
+        Message(
+            role="user",
+            content=[
+                {
+                    "type": "text",
+                    "text": f"Crawl the following url: {url} for the following goal: {goal}",
+                }
+            ],
         )
-    reply = crawler_agent.run(Message(role="user", content=[
-        {"type": "text", 
-         "text": f"Crawl the following url: {url} for the following goal: {goal}"}
-         ]))
+    )
     return reply.content

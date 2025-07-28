@@ -83,7 +83,9 @@ def render_campaigns_table() -> None:
 def render_create_form() -> None:
     """Form for inserting a new campaign request."""
     with st.expander("ایجاد درخواست جدید", expanded=False):
-        with st.form("create_campaign_form", clear_on_submit=True, enter_to_submit=False):
+        with st.form(
+            "create_campaign_form", clear_on_submit=True, enter_to_submit=False
+        ):
             col1, col2 = st.columns(2)
             with col1:
                 business_type = st.text_input("نوع کسب‌وکار")
@@ -94,9 +96,17 @@ def render_create_form() -> None:
                     step=50_000,
                     format="%d",
                 )
-                landing_type = st.selectbox("نوع لندینگ", ["سایت", "شماره تماس", "اکانت بیزنسی", "اپلیکیشن"])
+                landing_type = st.selectbox(
+                    "نوع لندینگ", ["سایت", "شماره تماس", "اکانت بیزنسی", "اپلیکیشن"]
+                )
                 goal = st.selectbox(
-                    "هدف تبلیغاتی", ["انتخاب توسط کمپین جن", "افزایش فروش", "جمع آوری لید", "افزایش ترافیک"]
+                    "هدف تبلیغاتی",
+                    [
+                        "انتخاب توسط کمپین جن",
+                        "افزایش فروش",
+                        "جمع آوری لید",
+                        "افزایش ترافیک",
+                    ],
                 )
 
             with col2:
