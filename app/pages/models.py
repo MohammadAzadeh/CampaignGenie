@@ -160,24 +160,26 @@ class AdDescription(BaseModel):
     landing_url: str
     image: Image
     call_to_action: str = Field(
-        ..., description="Call to Action, Less than 13 characters."
+        ..., description="Engaging Call to Action, Less than 13 characters."
     )
 
 
 class CampaignPlan(BaseModel):
-    type: Literal["native", "banner"] = Field(..., title="Campaign Type")
-    name: str = Field(..., title="Campaign Name")
-    business_description: str = Field(..., title="Business Description")
+    type: Literal["native", "banner"] = Field(...)
+    name: str = Field(..., description="A short name consisting of goal and campaign type")
+    business_description: str = Field(...)
     goal: str = Field(
         ..., description="Goal of the campaign | What satisfies the business owner?"
     )
-    description: str = Field(..., title="Campaign Description")
-    budget: int = Field(..., title="Daily Campaign Budget")
-    bidding_strategy: Literal["cpc"] = Field(..., title="Bidding Strategy")
+    description: str = Field(...)
+    budget: int = Field(..., ge=700_000, le=10_000_000)
+    bidding_strategy: Literal["cpc"] = Field(...)
     bid_toman: int = Field(
-        2000, title="Bid in Toman | Different from maximum cost per lead"
+        2000,
+        ge=2000,
+        le=1000000,
     )
-    target_audience_description: str = Field(..., title="Target Audience Description")
+    target_audience_description: str = Field(...)
     targeting_config: CampaignConfig
     ads_description: list[AdDescription]
 

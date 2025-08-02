@@ -146,7 +146,11 @@ class TaskConsumer:
                 print(f"No campaign plan found for task: {task.campaign_plan_id}")
                 task.status = "failed"
         except Exception as e:
-            task.status = "failed"
+            task.retry_count += 1
+            if task.retry_count > 5:
+                task.status = "failed"
+            else:
+                task.status = "create_ads"
             print(
                 f"Error processing create yektanet campaign task for session {task.session_id}: {e}"
             )
