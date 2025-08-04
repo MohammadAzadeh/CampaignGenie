@@ -8,7 +8,7 @@ import pathlib
 from typing import Optional
 import dotenv
 
-dotenv.load_dotenv()
+dotenv.load_dotenv(".env", verbose=True, override=True)
 
 # ============================================================================
 # Database Configuration

@@ -10,7 +10,7 @@ from PIL import Image
 
 import dotenv
 
-dotenv.load_dotenv("app/pages/.env", verbose=True)
+dotenv.load_dotenv(".env", verbose=True, override=True)
 
 ADVERTISER_ID = ""
 SESSION_ID = os.getenv("SESSION_ID")
@@ -120,6 +120,9 @@ def refresh_token():
             "TE": "trailers",
         },
     )
+    print(ACCOUNT_ID)
+    print(COOKIES)
+    print(response)
     HEADERS = {
         "Authorization": "JWT " + json.loads(response.text)["token"],
         "Cookie": COOKIES,
@@ -268,7 +271,7 @@ def create_ad(
             "item_url": ad_url,
             "description": "",
             "user_apply": "off",  # This indicates that the ad should be active or not
-            "cta_color": "#9BD2FF",
+            "cta_color": "#FF0000",
             "cta_title": ad_cta_title[:13],
             "image_source": "manual",
         },
@@ -282,15 +285,22 @@ def create_ad(
     print(f"{campaign_id}: Created ad {ad_id}")
     return ad_id
 
+from textwrap import dedent
+REFINED_PROMPT = dedent("""
+photo taken with a Canon DSLR, f/2.8, 85mm lens
+camera angle: eye-level
+tight framing / minimal background
+Suitable for use in digital ads and as a thumbnail image.""")
 
 def generate_ad_image(ad_image_description: str):
     print("Generating image")
     refresh_token()
+    refined_prompt = ad_image_description + "\n" + REFINED_PROMPT
     image_creation_request = requests.post(
         url="https://assistant.yektanet.com/api/v2/facilitator/assets/images/",
         headers=HEADERS,
         json={
-            "raw_prompt": ad_image_description,
+            "raw_prompt": refined_prompt,
             "campaign_id": None,
             "images_count": 1,
             "images_ratio": "3:2",

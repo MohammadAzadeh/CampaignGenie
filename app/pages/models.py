@@ -160,7 +160,10 @@ class AdDescription(BaseModel):
     landing_url: str
     image: Image
     call_to_action: str = Field(
-        ..., description="Engaging Call to Action, Less than 13 characters."
+        ...,
+        description="Engaging Call to Action, Less than 13 characters.",
+        min_length=1,
+        max_length=13,
     )
 
 
