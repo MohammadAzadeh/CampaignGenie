@@ -8,9 +8,9 @@ from agno.knowledge.document import DocumentKnowledgeBase
 from agno.document import Document
 from agno.vectordb.chroma import ChromaDb
 from agno.embedder.openai import OpenAIEmbedder
-from pages.models import CampaignRequest
+from pages.models import CampaignRequest, DocumentDB
+from pages.mongodb_utils import insert_document
 from pages.config import (
-    get_documents_csv_path,
     get_vector_db_uri,
     VECTOR_DB_TABLE_NAME,
     OPENAI_BASE_URL,
@@ -18,30 +18,8 @@ from pages.config import (
     EMBEDDING_MODEL_ID,
 )
 
-# Load documents from CSV file
-documents_df = pd.read_csv(get_documents_csv_path())
-
-
-# Create Document instances
-documents = []
-for _, row in documents_df.iterrows():
-    metadata = {
-        "contenttype": row.get("metadata_contenttype"),
-        "url": row.get("metadata_url"),
-        "name": row.get("name"),
-        "full_text": row.get("full_text"),
-    }
-
-    doc = Document(
-        id=row.get("id"),
-        name=row.get("name"),
-        content=row.get("content"),
-        meta_data=metadata,
-    )
-    documents.append(doc)
-
 knowledge_base = DocumentKnowledgeBase(
-    documents=documents,
+    documents=[],
     vector_db=ChromaDb(
         collection=VECTOR_DB_TABLE_NAME,
         path=get_vector_db_uri(),
@@ -53,6 +31,22 @@ knowledge_base = DocumentKnowledgeBase(
         ),
     ),
 )
+
+
+def load_documents_from_csv_to_kb(path: str):
+    # Load documents from CSV file
+    documents_df = pd.read_csv(path)
+
+    # Create Document instances
+    for _, row in documents_df.iterrows():
+        metadata = {
+            "contenttype": row.get("metadata_contenttype"),
+            "url": row.get("metadata_url"),
+            "name": row.get("name"),
+            "full_text": row.get("full_text"),
+        }
+        add_document_to_knowledge_base(row.get("name"), row.get("content"), metadata)
+        print("A")
 
 
 def add_document_to_knowledge_base(name: str, content: str, meta_data: dict):
@@ -73,9 +67,11 @@ def add_document_to_knowledge_base(name: str, content: str, meta_data: dict):
     try:
         id = len(knowledge_base.documents) + 1
         doc = Document(id=id, name=name, content=content, meta_data=meta_data)
+        insert_document(DocumentDB(name=name, content=content, meta_data=meta_data), check_if_exists=True)
         knowledge_base.add_document_to_knowledge_base(doc)
         return "Document added to knowledge base successfully"
     except Exception as e:
+        print(e)
         return f"Error in adding document to knowledge base: {str(e)}"
 
 
@@ -269,6 +265,14 @@ def search_yektanet(query: str) -> List[Dict[str, str]]:
         print(f"Error parsing Yektanet search results: {str(e)}")
         return []
 
+def insert_vector_db_documents_to_mongo(limit=1000):
+    for doc in knowledge_base.vector_db.search(query="", limit=limit):
+        name = doc.meta_data.get("name", "")
+        meta_data = doc.meta_data
+        meta_data.pop("distances")
+        insert_document(DocumentDB(name=name, content=doc.content, meta_data=meta_data))
 
-# Uncomment to load documents again.
-# knowledge_base.load(recreate=False)
+
+# Uncomment to load documents from csv.
+# from pages.config import get_documents_csv_path
+# load_documents_from_csv_to_kb(get_documents_csv_path())

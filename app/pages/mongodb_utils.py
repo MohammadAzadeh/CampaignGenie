@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.collection import Collection
 from bson import ObjectId
+import hashlib
 
 from pages.config import (
     get_mongodb_uri,
@@ -15,8 +16,9 @@ from pages.config import (
     get_mongodb_campaign_requests_collection,
     get_mongodb_tasks_collection,
     get_mongodb_campaign_plans_collection,
+    get_mongodb_documents_collection,
 )
-from pages.models import CampaignRequestDB, Task, CampaignPlanDB
+from pages.models import CampaignRequestDB, Task, CampaignPlanDB, DocumentDB
 
 
 class MongoDBManager:
@@ -94,6 +96,22 @@ def update_task(task: Task) -> None:
     task_dict = task.model_dump()
     task_dict.pop("id")
     collection.update_one({"_id": ObjectId(task.id)}, {"$set": task_dict})
+
+
+def insert_document(document: DocumentDB, check_if_exists: bool = True) -> str:
+    """
+    Insert a Document into the Documents collection.
+    """
+    collection = get_mongodb_manager().get_collection(get_mongodb_documents_collection())
+    hash = hashlib.md5((document.name + document.content).encode()).hexdigest()
+    if check_if_exists:
+        existing_document = collection.find_one({"hash": hash})
+        if existing_document:
+            return str(existing_document["_id"])
+    doc = document.model_dump()
+    doc["hash"] = hash
+    result = collection.insert_one(doc)
+    return str(result.inserted_id)
 
 
 def insert_campaign_plan(campaign_plan: CampaignPlanDB) -> str:

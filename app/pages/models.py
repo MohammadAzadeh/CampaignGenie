@@ -236,3 +236,10 @@ class CreateYektanetCampaignTask(Task):
         "failed",  # Task is failed
     ]
     retry_count: int = 0
+
+
+class DocumentDB(BaseModel):
+    id: Optional[str] = None  # This is the MongoDB ID
+    name: str
+    content: str
+    meta_data: dict

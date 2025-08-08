@@ -33,6 +33,7 @@ MONGODB_DATABASE = "campaign_genie"
 MONGODB_CAMPAIGN_REQUESTS_COLLECTION = "CampaignRequests"
 MONGODB_TASKS_COLLECTION = "Tasks"
 MONGODB_CAMPAIGN_PLANS_COLLECTION = "CampaignPlans"
+MONGODB_DOCUMENTS_COLLECTION = "Documents"
 
 # ============================================================================
 # File Paths Configuration
@@ -135,3 +136,8 @@ def get_mongodb_tasks_collection() -> str:
 def get_mongodb_campaign_plans_collection() -> str:
     """Get the MongoDB CampaignPlans collection name."""
     return MONGODB_CAMPAIGN_PLANS_COLLECTION
+
+
+def get_mongodb_documents_collection() -> str:
+    """Get the MongoDB Documents collection name."""
+    return MONGODB_DOCUMENTS_COLLECTION
