@@ -8,7 +8,6 @@ import streamlit as st
 from pydantic import ValidationError
 
 from pages.models import CampaignRequest, IRAN_PROVINCES, Landing, Business
-from pages.crud import insert_campaign_request, fetch_campaign_requests
 
 
 def inject_global_css() -> None:

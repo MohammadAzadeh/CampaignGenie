@@ -65,6 +65,7 @@ def display_campaign_plan(plan: CampaignPlanDB) -> None:
     with col2:
         st.metric("Bidding Strategy", plan.bidding_strategy.upper())
         st.metric("Campaign Name", plan.name)
+        st.metric("Publisher Group", plan.publisher_group)
 
     # Campaign Details
     st.subheader("📝 Campaign Information")

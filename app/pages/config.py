@@ -41,7 +41,6 @@ MONGODB_DOCUMENTS_COLLECTION = "Documents"
 
 # Documents and data files
 DOCUMENTS_CSV_PATH = "app/pages/files/CampaignGenieDocuments - Documents.csv"
-TASKS_DIR_PATH = "app/pages/files/tasks"
 
 # ============================================================================
 # API Configuration
@@ -91,11 +90,6 @@ def get_documents_csv_path() -> str:
 def get_vector_db_uri() -> str:
     """Get the vector database URI."""
     return VECTOR_DB_URI
-
-
-def get_tasks_dir_path() -> str:
-    """Get the tasks directory path."""
-    return TASKS_DIR_PATH
 
 
 def get_first_agent_db_path() -> str:

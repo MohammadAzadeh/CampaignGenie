@@ -3,6 +3,7 @@ from typing import Optional, Literal
 
 from pydantic import BaseModel, Field, PositiveInt
 
+
 IRAN_PROVINCES: list[str] = [
     "آذربایجان شرقی",
     "آذربایجان غربی",
@@ -151,7 +152,7 @@ class Image(BaseModel):
         None, description="Image URL, if source is user_asset"
     )
     prompt: Optional[str] = Field(
-        None, description="Image generation prompt for ad, if source is generate"
+        None, description="Image generation prompt for ad, if source is generate. * Image Generation model fails to generate persian text *"
     )
 
 
@@ -185,6 +186,7 @@ class CampaignPlan(BaseModel):
     target_audience_description: str = Field(...)
     targeting_config: CampaignConfig
     ads_description: list[AdDescription]
+    publisher_group: Optional[Literal["BEAUTY-HEALTH"]] = None
 
 
 class AdDescriptionDB(AdDescription):

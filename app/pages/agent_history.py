@@ -3,7 +3,7 @@ from typing import List, Dict
 import json
 from agno.storage.sqlite import SqliteStorage
 
-from pages.agents import FirstAgent, CampaignPlanner, KbgkAgent
+from pages.agents import FirstAgent, CampaignPlanner, KbgkAgent, CrawlerAgent
 from pages.config import (
     FIRST_AGENT_DB_PATH,
     CAMPAIGN_PLANNER_DB_PATH,
@@ -87,6 +87,8 @@ def get_agent_instance(agent_name: str, session_id: str):
         agent = CampaignPlanner(session_id=session_id)
     elif agent_name == "Knowledge Base Gate Keeper":
         agent = KbgkAgent(session_id=session_id)
+    elif agent_name == "Crawler Agent":
+        agent = CrawlerAgent(session_id=session_id)
     else:
         raise ValueError(f"Unknown agent: {agent_name}")
 

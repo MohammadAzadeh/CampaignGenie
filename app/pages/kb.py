@@ -131,7 +131,7 @@ def get_documents_for_user_request(campaign_request: CampaignRequest) -> str:
             query=search_query, num_documents=2, filters={"contenttype": "casestudy"}
         )
         helps = knowledge_base.search(
-            query=search_query, num_documents=2, filters={"contenttype": "help"}
+            query=search_query, num_documents=4, filters={"contenttype": "help"}
         )
         sample_campaign_plans = knowledge_base.search(
             query=search_query,

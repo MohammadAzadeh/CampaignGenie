@@ -39,7 +39,6 @@ from pages.config import (
     CAMPAIGN_PLANNER_TABLE_NAME,
     KBGK_AGENT_TABLE_NAME,
     AGENT_DEBUG_MODE,
-    get_tasks_dir_path,
     CRAWLER_AGENT_DB_PATH,
     CRAWLER_AGENT_TABLE_NAME,
 )
@@ -48,7 +47,6 @@ from pages.mongodb_utils import (
     insert_task,
     fetch_one_campaign_request,
     insert_campaign_plan,
-    update_campaign_plan,
 )
 
 
@@ -142,7 +140,10 @@ class FirstAgent:
                 base_url=OPENAI_BASE_URL,
                 api_key=get_openai_api_key(),
             ),
-            tools=[persist_campaign_request, agentic_crawl_url],
+            tools=[
+                persist_campaign_request,
+                agentic_crawl_url,
+                ],
             instructions=[
                 dedent(
                     """ 
@@ -204,6 +205,7 @@ class CampaignPlanner:
                 # search_yektanet,
                 # agentic_crawl_url,
                 # ask_from_knowledge_base,
+                crawl_images_from_landing
             ],
             goal="Create a CampaignPlan to handle the given CampaignRequest in persian",
             instructions=[
@@ -212,7 +214,12 @@ class CampaignPlanner:
                           Related documents are provided to you.
                         
                         * If a similar campaign plan is provided, use it as a reference.
-                          """)
+                        * Use crawl_images_from_landing to crawl images from landing page and use them as user_asset.
+                        
+                        * Create at most 4 ads using image.source = user_assets.
+                        * Create at most 4 ads using image.source = generate.
+                        * Images MUST be compatible with social norms and government rules in Iran.
+                         """)
             ],
             storage=SqliteStorage(
                 table_name=CAMPAIGN_PLANNER_TABLE_NAME, db_file=CAMPAIGN_PLANNER_DB_PATH
@@ -372,44 +379,106 @@ class KbgkAgent:
         return reply.content
 
 
-def agentic_crawl_url(url: str, goal: str, agent: Optional[Agent] = None, **kwargs):
+class CrawlerAgent:
+    def __init__(self, session_id: str, user_id: str = "1", response_model=None):
+        self.agent = Agent(
+            session_id=session_id,
+            user_id=user_id,
+            model=OpenAIChat(
+                id=MINI_GPT_MODEL_ID,
+                base_url=OPENAI_BASE_URL,
+                api_key=get_openai_api_key(),
+            ),
+            tools=[Crawl4aiTools(max_length=None)],
+            instructions=[
+                dedent("""
+                        You are a crawler agent that crawls the given url for the given goal.
+                        Always communicate in Persian (Farsi) as the primary language.
+                        """),
+            ],
+            storage=SqliteStorage(
+                table_name=CRAWLER_AGENT_TABLE_NAME, db_file=CRAWLER_AGENT_DB_PATH
+            ),
+            show_tool_calls=True,
+            debug_mode=AGENT_DEBUG_MODE,
+            telemetry=False,
+            monitoring=False,
+            response_model=response_model,
+        )
+
+    def respond(self, url: str, goal: str):
+        reply = self.agent.run(
+            Message(
+                role="user",
+                content=[
+                    {
+                        "type": "text",
+                        "text": f"Crawl the following url: {url} for the following goal: {goal}",
+                    }
+                ],
+            )
+        )
+        return reply.content
+
+
+def agentic_crawl_url(url: str, goal: str, agent: Optional[Agent] = None):
     """
     Crawl the given url for the given goal.
     The agent will use the Crawl4aiTools to crawl the url.
     The agent will return the crawled data.
     """
-    crawler_agent = Agent(
-        session_id=agent.session_id,
-        user_id=agent.user_id,
-        model=OpenAIChat(
-            id=MINI_GPT_MODEL_ID,
-            base_url=OPENAI_BASE_URL,
-            api_key=get_openai_api_key(),
-        ),
-        tools=[Crawl4aiTools(max_length=None)],
-        instructions=[
-            dedent("""
-                    You are a crawler agent that crawls the given url for the given goal.
-                    Always communicate in Persian (Farsi) as the primary language.
-                    """),
-        ],
-        storage=SqliteStorage(
-            table_name=CRAWLER_AGENT_TABLE_NAME, db_file=CRAWLER_AGENT_DB_PATH
-        ),
-        show_tool_calls=True,
-        debug_mode=AGENT_DEBUG_MODE,
-        telemetry=False,
-        monitoring=False,
+    crawler_agent = CrawlerAgent(agent.session_id, agent.user_id)
+    return crawler_agent.respond(url, goal)
+
+
+def crawl_images_from_landing(url: str, agent: Optional[Agent] = None):
+    """
+    Crawl images to use in ad generation from a business landing page
+    """
+    from pages.models import BaseModel, Field
+    from agno.media import Image
+    from PIL import Image as PILImage
+    from io import BytesIO
+    import requests
+
+    MAX_NUM_IMAGES_TO_CRAWL = 40
+    MAX_NUM_IMAGES_TO_RETURN = 10
+    class CrawledImage(BaseModel):
+        url: str
+        image_alt: str
+
+    class ImageCrawlerResponse(BaseModel):
+        images: list[CrawledImage] = Field(..., max_length=MAX_NUM_IMAGES_TO_CRAWL)
+
+    goal = dedent(f"""
+        Crawl the following url and return the images that seem useful for ad generation.
+        * Choose the images based on the content of url and the business type.
+        * Return images sorted based on relavence and usefulness descending.
+        * Return at most {MAX_NUM_IMAGES_TO_CRAWL} DISTINCT images.
+""")
+    crawler_agent = CrawlerAgent(
+        agent.session_id, agent.user_id, response_model=ImageCrawlerResponse
     )
-    reply = crawler_agent.run(
-        Message(
-            role="user",
-            content=[
-                {
-                    "type": "text",
-                    "text": f"Crawl the following url: {url} for the following goal: {goal}",
-                }
-            ],
-        )
-    )
-    return reply.content
+    response: ImageCrawlerResponse = crawler_agent.respond(url, goal)
+    valid_images = []
+    response_images = list({img.url for img in response.images})
+    for img_url in response_images:
+        try:
+            # Download the image
+            image_response = requests.get(img_url, timeout=5)
+            image_response.raise_for_status()  # Raise exception for bad status codes
+            
+            # Open image with PIL to check dimensions
+            pil_image = PILImage.open(BytesIO(image_response.content))
+            width, height = pil_image.size
+            
+            # Check if image meets minimum size requirements
+            if width >= 300 and height >= 300:
+                # Add to valid images list
+                valid_images.append(Image(url=img_url))
+                
+        except (requests.RequestException, PILImage.UnidentifiedImageError) as e:
+            print(f"error, {e}")
+            continue
+    return valid_images[:MAX_NUM_IMAGES_TO_RETURN]
+

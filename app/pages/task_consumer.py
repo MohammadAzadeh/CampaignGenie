@@ -94,6 +94,7 @@ class TaskConsumer:
                         page_keywords=campaign_plan.targeting_config.keywords,
                         page_categories=campaign_plan.targeting_config.categories,
                         user_segments=campaign_plan.targeting_config.user_segments,
+                        publisher_group_name=campaign_plan.publisher_group,
                     )
                     if created_campaign_id is None:
                         print(
@@ -123,6 +124,7 @@ class TaskConsumer:
                             ad.image.image_url,
                             ad.landing_url,
                             ad.call_to_action,
+                            ad.image.source
                         )
                         if created_ad_id is None:
                             print(
